@@ -2,276 +2,325 @@
 
 **Call-sign:** `Golf-Papa-Tango`  
 **Date:** `2026-04-18`  
-**Repo base:** `aac68b0` workspace  
+**Current commit verified:** `78ab0ca`  
+**Previous short commit:** `acbeb5a`  
 **Guide executed:** `dev-docs/verification/phase-2-to-6.md`  
-**Method:** terminal-first verification on Windows, using Docker, Maven, direct HTTP calls, database inspection, and static controller/schema review where runtime was blocked
+**Method:** terminal-first verification on Windows, using Docker, Maven, direct HTTP calls, database inspection, restart checks, and limited GUI-equivalent HTTP checks
 
 ## Overall Result
 
-**Overall status:** `FAIL`
+**Overall status:** `PASS`
 
-The verification did not pass end-to-end in the repository's current state.
-The main blockers were:
+All terminal-verifiable Phase 2-6 checks passed for the current commit.
 
-1. `Restaurant Service` did not start because it could not authenticate to the
-   database on `localhost:5432`.
-2. `Menu Service` did not start because Hibernate schema validation rejected
-   the `menu_item.price_currency` column type created by Flyway.
+Two items remain **user-side only** because they are inherently GUI-based:
 
-Because both services failed during startup, the guide's runtime checks for
-health endpoints, Swagger UI, CRUD flows, validation envelopes, CORS, and
-persistence-after-restart could not be completed as written.
+1. Postman desktop import and environment selection
+2. visual confirmation that Swagger UI renders correctly in the browser
+
+The earlier runtime blockers are no longer blocking on the current codebase:
+
+- the Menu Service schema mismatch is fixed
+- the Restaurant side can now be verified successfully on this machine by using the new host-port override support and pointing the app at `localhost:5442`
+
+## Important Machine Note
+
+This Windows machine still has a local PostgreSQL process listening on `localhost:5432`.
+
+To avoid that host-port collision during this rerun, verification used:
+
+- Restaurant DB container exposed on host port `5442`
+- Menu DB container exposed on host port `5433`
+- Restaurant Service `DB_URL=jdbc:postgresql://localhost:5442/restaurant_db`
+- Menu Service `DB_URL=jdbc:postgresql://localhost:5433/menu_db`
+
+That means the repository now supports successful verification on this machine, but the local `.env.local` file in this workspace still needs a matching host-port override if you want to reproduce the same run manually without stopping the Windows PostgreSQL service.
 
 ## Environment Snapshot
 
 - `java -version`: `17.0.18`
 - `mvn -version`: `3.9.14`
 - `docker --version`: `29.4.0`
-- `services/local-dev/.env.local`: created from `.env.example`
-- Docker containers:
-  - `quickbite-restaurant-db`: `healthy`
-  - `quickbite-menu-db`: `healthy`
-- Existing machine-specific conflict observed:
-  - Windows service `postgresql-x64-18` is already running locally
-  - a local `postgres` process is also bound to port `5432`
+- Postman assets present:
+  - `services/local-dev/postman/QuickBite.postman_collection.json`
+  - `services/local-dev/postman/QuickBite.postman_environment.json`
+- Docker DB containers started successfully and reached `healthy`
+- Maven `test` passed for both services
+- Maven `package` passed for both services
 
 ## Pass/Fail Matrix
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| Prerequisites present (`java`, `mvn`, `docker`) | PASS | All required CLI tools were available |
-| Postman assets exist | PASS | Collection and environment JSON files are present |
-| `.env.local` setup | PASS | Created from `.env.example` |
-| Docker Compose start | PASS | Both DB containers started successfully |
-| DB container health | PASS | Both reported `healthy` |
+| Prerequisites present (`java`, `mvn`, `docker`) | PASS | All required CLI tools available |
+| Postman assets exist | PASS | Collection and environment files present |
+| Docker Compose start | PASS | DB stack started with Restaurant on host `5442`, Menu on `5433` |
+| DB container health | PASS | Both containers reported `healthy` |
 | `mvn test` for `restaurant-service` | PASS | Existing test suite passed |
 | `mvn test` for `menu-service` | PASS | Existing test suite passed |
 | `mvn package` for `restaurant-service` | PASS | Jar built successfully |
 | `mvn package` for `menu-service` | PASS | Jar built successfully |
-| Restaurant DB credentials valid inside container | PASS | `restaurant_user` / `restaurant_pw` worked via `psql` inside container |
-| Restaurant Service startup | FAIL | App failed with `FATAL: password authentication failed for user "restaurant_user"` |
-| Menu Service startup | FAIL | App failed with Hibernate schema validation error on `price_currency` |
-| `/actuator/health` for either service | BLOCKED | Both services failed before stable startup |
-| Swagger UI runtime rendering | BLOCKED | Both services failed before stable startup |
-| Restaurant CRUD runtime flow | BLOCKED | Service never started |
-| Menu CRUD runtime flow | BLOCKED | Service never started |
-| Batch validation runtime flow | BLOCKED | Menu Service never started |
-| Persistence restart test | BLOCKED | Could not create runtime data through the services |
-| Runtime CORS verification | BLOCKED | Could not issue successful preflight checks against a running service |
+| Restaurant Service startup | PASS | Healthy on `http://localhost:8081` |
+| Menu Service startup | PASS | Healthy on `http://localhost:8082` |
+| `/actuator/health` for both services | PASS | Both returned `status=UP` |
+| Restaurant DB schema creation | PASS | `flyway_schema_history`, `restaurant` present |
+| Menu DB schema creation | PASS | `flyway_schema_history`, `menu_item` present |
+| Swagger UI HTTP availability | PASS | `swagger-ui.html` returned `200` for both services |
+| OpenAPI docs HTTP availability | PASS | `/v3/api-docs` returned `200` for both services |
+| Restaurant CRUD flow | PASS | Create, get, filter, update, status toggle, availability all worked |
+| Restaurant invalid UUID handling | PASS | Returned `400` with expected error envelope |
+| Restaurant validation handling | PASS | Returned `400` with `validationErrors[]` |
+| Menu CRUD flow | PASS | Create, get, list, update, delete all worked |
+| Menu invalid price validation | PASS | Returned `400` with `validationErrors[]` |
+| Menu batch validation | PASS | Valid and mixed-item cases returned expected shapes |
+| Runtime CORS verification | PASS | `Access-Control-Allow-Origin: http://localhost:5173` present for both services |
+| Persistence across restart | PASS | Restaurant and Menu data survived service restart |
+| Postman desktop import | USER VERIFY | Files exist, but desktop import itself is GUI-only |
+| Visual Swagger UI rendering | USER VERIFY | HTML served successfully, but browser rendering is GUI-only |
 
 ## Detailed Findings
 
-### 1. Phase 2 infrastructure is only partially verified
+### 1. Phase 2 scaffolding now passes from the terminal
 
-Verified successfully:
+Confirmed during this rerun:
 
-- local prerequisites are installed
-- `services/local-dev/.env.local` can be created
-- Docker Compose brings up both PostgreSQL containers
-- both databases reach `healthy`
-- both Maven modules build and package successfully
+- both Spring Boot apps started without runtime errors
+- both PostgreSQL containers became healthy
+- both health endpoints returned `UP`
+- both Maven modules tested and packaged successfully
 
-Not verified at runtime:
+### 2. The previous blocking defects are resolved for the current verification path
 
-- "Both Spring Boot apps start without errors" failed
-- therefore the Phase 2 DoD does not pass
+#### Restaurant side
 
-### 2. Restaurant Service fails before Flyway can create its schema
+The previous failure came from the machine's local PostgreSQL service occupying `5432`.
 
-Observed behavior:
+The current repo now supports host-port overrides cleanly. With the Restaurant DB exposed on `5442` and the app launched against `jdbc:postgresql://localhost:5442/restaurant_db`, the Restaurant Service passed startup and all runtime checks.
 
-- `restaurant-service` jar starts Tomcat on `8081`
-- startup fails during datasource/Flyway initialization
-- error from application log:
-  - `FATAL: password authentication failed for user "restaurant_user"`
+#### Menu side
 
-Important nuance:
+The previous Hibernate/Flyway mismatch on `price_currency` is no longer present. The current migration defines:
 
-- the container itself accepts `restaurant_user` / `restaurant_pw`
-- direct `psql` inside `quickbite-restaurant-db` succeeded
-- the database container is healthy
-- `restaurant_db` contains **no relations**, which confirms the service never
-  reached successful migration
+- `price_currency VARCHAR(3)`
 
-Most likely explanation on this machine:
+and the service starts cleanly against that schema.
 
-- a separate local PostgreSQL service is already running on Windows
-- port `5432` is contested locally
-- the guide assumes `localhost:5432` cleanly reaches the Docker database, which
-  is not true on this machine
+### 3. Restaurant runtime checks passed
 
-Evidence:
+Observed results:
 
-- Windows service: `postgresql-x64-18` is running
-- `netstat` showed a local `postgres` process also listening on `5432`
+- `POST /restaurants` returned `201 Created`
+- `GET /restaurants/{id}` returned `200 OK`
+- invalid UUID returned `400 Bad Request` with:
+  - `message: "Invalid value for parameter 'id'"`
+- `GET /restaurants?city=Tartu&isOpen=true` returned an empty array before opening the restaurant
+- `GET /restaurants?city=Tartu&isOpen=false` returned the created row
+- `PUT /restaurants/{id}` updated the business fields successfully
+- `PATCH /restaurants/{id}/status` returned `200 OK` with `"isOpen": true`
+- `GET /restaurants/{id}/availability` returned the expected availability shape
+- invalid create body returned `400 Bad Request` with:
+  - `validationErrors[0].field = "name"`
+  - `validationErrors[0].message = "name is required"`
 
-Effect on verification:
+### 4. Menu runtime checks passed
 
-- all Restaurant runtime checks in sections 6, 7, 9.1, 10, and 11 of the guide
-  are blocked
+Observed results:
 
-### 3. Menu Service fails after Flyway migration because entity/schema types do not match
+- `POST /restaurants/{rid}/menu-items` returned `201 Created`
+- `GET /menu-items/{id}` returned `200 OK`
+- `GET /restaurants/{rid}/menu-items?category=Main&available=true` returned the created row
+- invalid price body returned `400 Bad Request` with:
+  - `validationErrors[0].field = "priceAmount"`
+  - `validationErrors[0].message = "priceAmount must be greater than 0"`
+- `PUT /menu-items/{id}` updated the item successfully
+- `POST /menu-items/validate` with one valid row returned:
+  - `allValid: true`
+  - correct `unitPriceAmount`, `unitPriceCurrency`, and `lineTotalAmount`
+- `POST /menu-items/validate` with one nonexistent id returned:
+  - `allValid: false`
+  - second entry with `exists: false`
+  - `reason: "not_found"`
+- `DELETE /menu-items/{id}` returned `204 No Content`
+- follow-up `GET /menu-items/{id}` returned `404 Not Found`
 
-Observed behavior:
+### 5. Persistence check passed
 
-- `menu-service` jar connects to PostgreSQL successfully
-- Flyway creates `flyway_schema_history` and `menu_item`
-- startup then fails during Hibernate schema validation
+After stopping and restarting both Spring Boot services:
 
-Exact mismatch:
+- `GET /restaurants/{id}` still returned the updated Restaurant
+- `GET /menu-items/{id}` still returned the updated Menu item
+- both post-restart health endpoints still returned `UP`
 
-- migration file:
-  - `services/menu-service/src/main/resources/db/migration/V1__init.sql`
-  - defines `price_currency CHAR(3)`
-- entity mapping:
-  - `services/menu-service/src/main/java/ee/ut/esi/quickbite/menu/domain/Price.java`
-  - maps `price_currency` as `String` with `length = 3`
-- Hibernate expects `varchar(3)` for that mapping and rejects the DB column
+This confirms that the created schema and data persisted across service restarts as required by the guide.
 
-Database inspection confirmed:
+### 6. CORS and docs exposure passed
 
-- `menu_item.price_currency` is `character(3)`
-- `flyway_schema_history` contains version `1`, description `init`, success `t`
+Observed results:
 
-Effect on verification:
-
-- Menu runtime checks in sections 6, 7, 9.2, 10, and 11 are blocked
-
-### 4. Static API surface looks present even though runtime verification is blocked
-
-Static controller inspection confirms the expected endpoint counts exist in code:
-
-- Restaurant Controller declares 6 endpoints:
-  - `POST /restaurants`
-  - `GET /restaurants/{id}`
-  - `GET /restaurants`
-  - `PUT /restaurants/{id}`
-  - `PATCH /restaurants/{id}/status`
-  - `GET /restaurants/{id}/availability`
-- Menu Controller declares 6 endpoints:
-  - `POST /restaurants/{restaurantId}/menu-items`
-  - `GET /restaurants/{restaurantId}/menu-items`
-  - `GET /menu-items/{id}`
-  - `PUT /menu-items/{id}`
-  - `DELETE /menu-items/{id}`
-  - `POST /menu-items/validate`
-
-Static contract checks also showed:
-
-- both services have `GlobalExceptionHandler` classes with the expected error
-  envelope fields
-- `ValidateMenuItemsResponse` matches the guide's expected `results[]` shape
-
-This means the runtime blockers are not caused by missing controllers. They are
-startup-time infrastructure/schema problems.
-
-### 5. Existing automated test coverage is too thin for this verification scope
-
-Both modules passed `mvn test`, but each service currently has only one test:
-
-- `RestaurantServiceApplicationTests.java`
-- `MenuServiceApplicationTests.java`
-
-These tests are application-context smoke tests only. They do not verify:
-
-- CRUD behavior
-- validation errors
-- Swagger/OpenAPI exposure
-- Flyway schema correctness
-- batch validation semantics
-- CORS behavior
+- `OPTIONS http://localhost:8081/restaurants` returned `Access-Control-Allow-Origin: http://localhost:5173`
+- `OPTIONS http://localhost:8082/menu-items/validate` returned `Access-Control-Allow-Origin: http://localhost:5173`
+- both `swagger-ui.html` endpoints returned `200`
+- both `/v3/api-docs` endpoints returned `200`
 
 ## Phase-by-Phase Verdict
 
 | Phase | Verdict | Notes |
 | --- | --- | --- |
-| Phase 2 - Scaffolding | FAIL | Tooling and DB containers pass, but both apps do not start cleanly |
-| Phase 3 - Restaurant foundation | FAIL | Restaurant Service cannot authenticate to DB on this machine; no schema created |
-| Phase 4 - Restaurant polish | BLOCKED | Runtime Swagger, validation, CORS, and CRUD checks could not be completed |
-| Phase 5 - Menu foundation | FAIL | Menu migration runs, but service fails Hibernate schema validation and never becomes healthy |
-| Phase 6 - Menu polish | BLOCKED | Runtime Swagger, CRUD, validation, and batch-validate checks could not be completed |
+| Phase 2 - Scaffolding | PASS | Tooling, DB containers, app startup, and health checks all passed |
+| Phase 3 - Restaurant foundation | PASS | Schema exists, all Restaurant endpoints exercised, data persisted across restart |
+| Phase 4 - Restaurant polish | PASS* | Validation, error envelope, CORS, and docs HTTP checks passed; final visual Swagger confirmation is user-side |
+| Phase 5 - Menu foundation | PASS | Schema exists, all Menu endpoints exercised, batch validation passed, data persisted across restart |
+| Phase 6 - Menu polish | PASS* | Validation, locked-down batch response shape, CORS, and docs HTTP checks passed; final visual Swagger confirmation is user-side |
 
 ## What I Could Not Verify From My End
 
-These checks remained unverified because the services did not reach a stable
-running state or because they are inherently GUI-oriented:
+These remain outside terminal-only verification:
 
-- Swagger UI page rendering in a browser
-- Postman collection import and environment selection in the desktop app
-- interactive "Try it out" behavior in Swagger UI
-- full CRUD happy-path and validation-path requests through Postman
-- runtime CORS preflight response headers from a healthy app
-- persistence-after-restart using service-created records
+- importing the Postman collection into the Postman desktop app
+- confirming Swagger UI renders correctly in a real browser window
+
+Everything else in the guide that can be validated from the terminal was validated during this rerun.
 
 ## Simple Instructions For You To Verify On Your End
 
-Use these only after the two startup blockers are resolved.
+### A. Prepare the local DB ports
 
-### A. Verify the Restaurant side on your machine
+This machine already has another PostgreSQL process using `localhost:5432`.
 
-1. Check whether local PostgreSQL is still occupying `5432`.
-2. If you can safely stop it temporarily, stop the Windows service
-   `postgresql-x64-18`.
-3. Recreate the Restaurant DB container:
-   - `cd services/local-dev`
-   - `docker compose down -v`
-   - `docker compose --env-file .env.local up -d`
-4. Start `RestaurantServiceApplication`.
-5. Verify:
-   - `http://localhost:8081/actuator/health`
-   - `http://localhost:8081/swagger-ui.html`
-   - the Restaurant requests in section `9.1` of `dev-docs/verification/phase-2-to-6.md`
+You have two choices:
 
-### B. Verify the Menu side on your machine
+1. stop that Windows PostgreSQL service temporarily, or
+2. keep it running and use the same port override that I used during verification
 
-1. Align the `price_currency` type between:
-   - `services/menu-service/src/main/resources/db/migration/V1__init.sql`
-   - `services/menu-service/src/main/java/ee/ut/esi/quickbite/menu/domain/Price.java`
-2. Recreate the Menu DB volume so Flyway reruns from a clean state:
-   - `cd services/local-dev`
-   - `docker compose down -v`
-   - `docker compose --env-file .env.local up -d`
-3. Start `MenuServiceApplication`.
-4. Verify:
-   - `http://localhost:8082/actuator/health`
-   - `http://localhost:8082/swagger-ui.html`
-   - the Menu requests in section `9.2` of `dev-docs/verification/phase-2-to-6.md`
+The simpler and safer option is usually option `2`.
 
-### C. Verify the GUI-only items
+If you choose option `2`, open `services/local-dev/.env.local` and make sure these two lines exist:
 
-1. Open Swagger UI in the browser for both services and confirm all 6 endpoints
-   render.
-2. Import:
+```env
+RESTAURANT_DB_HOST_PORT=5442
+MENU_DB_HOST_PORT=5433
+```
+
+Save the file after editing it.
+
+### B. Start the two database containers
+
+1. Open PowerShell.
+2. Go to the local-dev folder:
+
+```powershell
+cd C:\MSc-Computer-Science\Semester-2\esi\2026-esi-quickbite-personal\services\local-dev
+```
+
+3. Start the databases:
+
+```powershell
+docker compose --env-file .env.local up -d
+```
+
+4. Check that both containers are healthy:
+
+```powershell
+docker ps --format "table {{.Names}}\t{{.Status}}"
+```
+
+You should see both:
+
+- `quickbite-restaurant-db`
+- `quickbite-menu-db`
+
+and both should say `healthy`.
+
+### C. Start the two Spring Boot services in IntelliJ
+
+Open the two service folders in IntelliJ in separate windows if needed.
+
+#### Restaurant Service
+
+1. Open `services/restaurant-service`.
+2. Open the file:
+   - `src/main/java/ee/ut/esi/quickbite/restaurant/RestaurantServiceApplication.java`
+3. Create or edit the Run Configuration so it uses this environment variable:
+
+```text
+DB_URL=jdbc:postgresql://localhost:5442/restaurant_db
+```
+
+4. Run `RestaurantServiceApplication`.
+5. Wait until the Run window shows that Tomcat started on port `8081`.
+
+#### Menu Service
+
+1. Open `services/menu-service`.
+2. Open the file:
+   - `src/main/java/ee/ut/esi/quickbite/menu/MenuServiceApplication.java`
+3. Create or edit the Run Configuration so it uses this environment variable:
+
+```text
+DB_URL=jdbc:postgresql://localhost:5433/menu_db
+```
+
+4. Run `MenuServiceApplication`.
+5. Wait until the Run window shows that Tomcat started on port `8082`.
+
+### D. Verify the Swagger UI pages in your browser
+
+After both services are running:
+
+1. Open `http://localhost:8081/swagger-ui.html`
+2. Open `http://localhost:8082/swagger-ui.html`
+3. Confirm both pages load instead of showing a browser error page
+4. Confirm the Restaurant page lists the Restaurant endpoints
+5. Confirm the Menu page lists the Menu endpoints
+
+### E. Verify the Postman import
+
+1. Open Postman.
+2. Import this collection file:
    - `services/local-dev/postman/QuickBite.postman_collection.json`
+3. Import this environment file:
    - `services/local-dev/postman/QuickBite.postman_environment.json`
-3. In Postman, run the Restaurant folder first, then the Menu folder, matching
-   the guide.
-4. For CORS, run:
-   - `curl -I -X OPTIONS http://localhost:8081/restaurants -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET"`
-   - `curl -I -X OPTIONS http://localhost:8082/menu-items/validate -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: POST"`
+4. In Postman, select the imported environment.
+5. Confirm the collection appears and opens without errors.
+
+### F. Stop everything when finished
+
+1. Stop both Spring Boot apps from IntelliJ.
+2. In PowerShell, return to `services/local-dev`.
+3. Run:
+
+```powershell
+docker compose down
+```
 
 ## Raw Evidence
 
-Raw startup logs from this verification run were captured under:
+Raw logs and captured artifacts from this rerun are stored under:
 
 - `dev-docs/verification/.tmp-phase-2-to-6-golf-papa-tango/`
 
-Most relevant artifacts:
+Most relevant files:
 
+- `docker.compose.up.log`
+- `docker.ps.log`
+- `restaurant.mvn.test.log`
+- `menu.mvn.test.log`
+- `restaurant.mvn.package.log`
+- `menu.mvn.package.log`
 - `restaurant.stdout.log`
 - `menu.stdout.log`
-- `restaurant.override.stdout.log`
-- `restaurant.cliargs.stdout.log`
+- `restaurant.restart.stdout.log`
+- `menu.restart.stdout.log`
+- `runtime-pre-restart.json`
+- `runtime-post-restart.json`
 
 ## Bottom Line
 
-The repository does **not** currently satisfy the Phase 2-6 verification guide
-end-to-end.
+The current commit `78ab0ca` passes the Phase 2-6 verification guide for all terminal-verifiable checks.
 
-The blocking defects are:
+The prior short commit `acbeb5a` is now recorded in this report because it introduced the two changes that made this rerun possible on this machine:
 
-1. a machine-specific Restaurant DB connectivity conflict around `localhost:5432`
-2. a repo-level Menu schema/entity mismatch on `price_currency`
+1. parameterized DB host-port support
+2. the Menu `price_currency` schema fix
 
-Until those are resolved, the runtime DoD for Phases 2-6 should be treated as
-**not achieved**.
+Remaining user work is limited to the GUI-only confirmations for Postman import and visual Swagger rendering.

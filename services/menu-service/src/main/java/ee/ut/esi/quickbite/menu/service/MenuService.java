@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -90,7 +91,8 @@ public class MenuService {
             if (m == null) {
                 return new ValidateMenuItemsResponse.Line(
                     line.menuItemId(), line.quantity(),
-                    false, false, null, null, null, "not_found"
+                    false, false, null, null, null,
+                    ValidateMenuItemsResponse.ERROR_NOT_FOUND
                 );
             }
             if (!m.isAvailable()) {
@@ -98,7 +100,8 @@ public class MenuService {
                     m.getMenuItemId(), line.quantity(),
                     true, false,
                     m.getPrice().getAmount(), m.getPrice().getCurrency(),
-                    null, "not_available"
+                    null,
+                    ValidateMenuItemsResponse.ERROR_NOT_AVAILABLE
                 );
             }
             BigDecimal lineTotal = m.getPrice().getAmount().multiply(BigDecimal.valueOf(line.quantity()));
@@ -110,8 +113,17 @@ public class MenuService {
             );
         }).toList();
 
-        boolean allValid = lines.stream().allMatch(l -> l.exists() && l.available());
-        return new ValidateMenuItemsResponse(allValid, lines);
+        boolean allValid = lines.stream().allMatch(l -> l.exists() && l.isAvailable());
+        BigDecimal totalAmount = lines.stream()
+            .map(ValidateMenuItemsResponse.Line::lineTotal)
+            .filter(Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        String currency = lines.stream()
+            .map(ValidateMenuItemsResponse.Line::unitPriceCurrency)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse("EUR");
+        return new ValidateMenuItemsResponse(allValid, lines, totalAmount, currency);
     }
 
     private static void validatePrice(BigDecimal amount) {

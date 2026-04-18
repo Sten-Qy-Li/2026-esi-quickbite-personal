@@ -174,13 +174,15 @@ class MenuControllerTest {
     @Test
     void validate_succeedsWithCustomerToken() throws Exception {
         when(service.validate(any()))
-            .thenReturn(new ValidateMenuItemsResponse(true, List.of()));
+            .thenReturn(new ValidateMenuItemsResponse(true, List.of(), BigDecimal.ZERO, "EUR"));
         mvc.perform(post("/menu-items/validate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + customerToken)
                 .content(validValidateBody()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.allValid").value(true));
+            .andExpect(jsonPath("$.allValid").value(true))
+            .andExpect(jsonPath("$.items").isArray())
+            .andExpect(jsonPath("$.currency").value("EUR"));
     }
 
     @Test

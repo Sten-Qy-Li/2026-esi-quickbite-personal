@@ -85,7 +85,12 @@ new numbered decision that supersedes this entry.
   Order Service decide (maybe the client can queue a future order). A
   409 would force a hard rejection semantics that A3 does not require.
 - **Target phase.** Phase 1 (agree with team) and Phase 9 (lock).
-- **Answer.** _Pending._
+- **Answer.** Resolved by
+  [`0031-cross-service-status-code-table.md`](./0031-cross-service-status-code-table.md)
+  §1 on 2026-04-18: `200` with `acceptsOrders:false`. Outside-hours
+  also uses the same `200` shape, distinguished from closed-flag via
+  the `isOpen` field on the payload. Order Service consumes
+  `acceptsOrders`, not `isOpen`, so the single status code is enough.
 
 ### Q6 -- Browse-route protection (`GET` on restaurants and menu items)
 

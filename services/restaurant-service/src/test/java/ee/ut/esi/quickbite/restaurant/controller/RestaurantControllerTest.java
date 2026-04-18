@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -94,11 +95,17 @@ class RestaurantControllerTest {
     @Test
     void availability_succeedsWithCustomerToken() throws Exception {
         when(service.availability(RESTAURANT_ID))
-            .thenReturn(new AvailabilityResponse(RESTAURANT_ID, true, "11:00-22:00"));
+            .thenReturn(new AvailabilityResponse(
+                RESTAURANT_ID, true, true, "11:00-22:00",
+                Instant.parse("2026-05-05T12:34:56Z")
+            ));
         mvc.perform(get("/restaurants/{id}/availability", RESTAURANT_ID)
                 .header("Authorization", "Bearer " + customerToken))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.isOpen").value(true));
+            .andExpect(jsonPath("$.isOpen").value(true))
+            .andExpect(jsonPath("$.acceptsOrders").value(true))
+            .andExpect(jsonPath("$.operatingHours").value("11:00-22:00"))
+            .andExpect(jsonPath("$.checkedAt").exists());
     }
 
     @Test

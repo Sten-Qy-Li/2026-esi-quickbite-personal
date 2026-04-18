@@ -13,10 +13,12 @@ import ee.ut.esi.quickbite.restaurant.security.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,7 +40,6 @@ class RestaurantServiceTest {
     @Mock
     private CurrentUser currentUser;
 
-    @InjectMocks
     private RestaurantService service;
 
     private AuthenticatedUser ownerPrincipal;
@@ -46,6 +47,8 @@ class RestaurantServiceTest {
     @BeforeEach
     void setUp() {
         ownerPrincipal = new AuthenticatedUser(OWNER_ID, "RestaurantOwner", "USER", null);
+        Clock fixedClock = Clock.fixed(Instant.parse("2026-05-05T12:34:56Z"), ZoneOffset.UTC);
+        service = new RestaurantService(restaurants, currentUser, fixedClock);
     }
 
     @Test

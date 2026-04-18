@@ -138,22 +138,24 @@ class MenuServiceTest {
         )));
 
         assertThat(response.allValid()).isFalse();
-        assertThat(response.results()).hasSize(3);
+        assertThat(response.items()).hasSize(3);
+        assertThat(response.totalAmount()).isEqualByComparingTo("17.00");
+        assertThat(response.currency()).isEqualTo("EUR");
 
-        ValidateMenuItemsResponse.Line firstLine = response.results().get(0);
+        ValidateMenuItemsResponse.Line firstLine = response.items().get(0);
         assertThat(firstLine.exists()).isTrue();
-        assertThat(firstLine.available()).isTrue();
-        assertThat(firstLine.lineTotalAmount()).isEqualByComparingTo("17.00");
-        assertThat(firstLine.reason()).isNull();
+        assertThat(firstLine.isAvailable()).isTrue();
+        assertThat(firstLine.lineTotal()).isEqualByComparingTo("17.00");
+        assertThat(firstLine.error()).isNull();
 
-        ValidateMenuItemsResponse.Line secondLine = response.results().get(1);
+        ValidateMenuItemsResponse.Line secondLine = response.items().get(1);
         assertThat(secondLine.exists()).isTrue();
-        assertThat(secondLine.available()).isFalse();
-        assertThat(secondLine.reason()).isEqualTo("not_available");
+        assertThat(secondLine.isAvailable()).isFalse();
+        assertThat(secondLine.error()).isEqualTo("MENU_ITEM_NOT_AVAILABLE");
 
-        ValidateMenuItemsResponse.Line thirdLine = response.results().get(2);
+        ValidateMenuItemsResponse.Line thirdLine = response.items().get(2);
         assertThat(thirdLine.exists()).isFalse();
-        assertThat(thirdLine.reason()).isEqualTo("not_found");
+        assertThat(thirdLine.error()).isEqualTo("MENU_ITEM_NOT_FOUND");
     }
 
     @Test
@@ -171,6 +173,8 @@ class MenuServiceTest {
         )));
 
         assertThat(response.allValid()).isTrue();
-        assertThat(response.results()).allMatch(l -> l.exists() && l.available());
+        assertThat(response.items()).allMatch(l -> l.exists() && l.isAvailable());
+        assertThat(response.totalAmount()).isEqualByComparingTo("13.00");
+        assertThat(response.currency()).isEqualTo("EUR");
     }
 }

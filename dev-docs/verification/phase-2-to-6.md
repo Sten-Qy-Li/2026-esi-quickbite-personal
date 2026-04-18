@@ -101,12 +101,27 @@ Compose takes care of that.
    cp .env.example .env.local
    ```
    `.env.local` is git-ignored. It holds DB passwords for your machine.
-3. Start the containers:
+3. **Check for port conflicts** before starting. Run:
+   ```bash
+   netstat -ano | findstr :5432
+   netstat -ano | findstr :5433
+   ```
+   If either prints a `LISTENING` line from a non-Docker process, you
+   have a conflict. Most common culprit on Windows is the installed
+   PostgreSQL Windows service (e.g. `postgresql-x64-18`). Two fixes:
+   - **Temporarily stop the other service** (PowerShell as admin:
+     `Stop-Service postgresql-x64-18`), *or*
+   - **Override the host port** in `.env.local` by editing
+     `RESTAURANT_DB_HOST_PORT=5442` and/or `MENU_DB_HOST_PORT=5443`.
+     If you override, also set `DB_URL` in the service's IntelliJ
+     Run Configuration (§4/§5 below) to match, e.g.
+     `DB_URL=jdbc:postgresql://localhost:5442/restaurant_db`.
+4. Start the containers:
    ```bash
    docker compose --env-file .env.local up -d
    ```
    `-d` runs them in the background.
-4. Verify both containers are healthy:
+5. Verify both containers are healthy:
    ```bash
    docker ps --format "table {{.Names}}\t{{.Status}}"
    ```
@@ -461,7 +476,7 @@ These are explicitly deferred and will feel missing. Don't worry.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `Port 8081 already in use` | A previous `RestaurantServiceApplication` is still running | In IntelliJ, look for another Run tab with a green square and stop it. On Windows: `netstat -ano | findstr :8081` -> `taskkill /PID <pid> /F`. |
-| `FATAL: password authentication failed for user "restaurant_user"` | `.env.local` password changed but you didn't restart the DB container | `cd services/local-dev && docker compose down -v && docker compose --env-file .env.local up -d` |
+| `FATAL: password authentication failed for user "restaurant_user"` | Either (a) `.env.local` password changed but you didn't restart the DB container, **or** (b) another PostgreSQL on the host is stealing port 5432 so Spring Boot is talking to the wrong server | (a) `cd services/local-dev && docker compose down -v && docker compose --env-file .env.local up -d`. (b) Run `netstat -ano | findstr :5432` -- if a non-Docker process listens, follow §3 step 3 above to override the host port or stop the rival service. |
 | `Connection refused` on localhost:5432 | Docker container isn't running | `docker ps` -- if empty, re-run step 3 |
 | Flyway error `Schema "public" contains a failed migration` | A previous run crashed mid-migration | `docker compose down -v` (wipes data), then `up -d`. For production this would require `flyway repair`. |
 | Swagger UI returns 404 | Service started but `springdoc` didn't load; check the console for a red stack trace | Usually means `pom.xml` change didn't trigger a Maven reload -- right-click `pom.xml` -> **Maven -> Reload Project** |

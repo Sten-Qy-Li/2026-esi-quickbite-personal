@@ -9,8 +9,17 @@ cd services/local-dev
 cp .env.example .env.local          # on first run only
 ```
 
-Edit `.env.local` only if you want to change passwords. Everything
-else can use the defaults.
+Edit `.env.local` only if you want to change passwords or host ports.
+Everything else can use the defaults.
+
+> **Host-port conflict?** If your machine already runs PostgreSQL on
+> `5432` (common on Windows with the `postgresql-x64-*` service) or
+> `5433`, the Docker container will fail to start, or the Spring
+> Boot service will try to talk to the wrong database. Override
+> `RESTAURANT_DB_HOST_PORT` and/or `MENU_DB_HOST_PORT` in
+> `.env.local` -- e.g. `5442` / `5443` -- and also set `DB_URL` in
+> the service's IntelliJ Run Configuration to match. See §3 below
+> for the JDBC URL format.
 
 ## 2. Start the stack
 

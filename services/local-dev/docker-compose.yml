@@ -1,0 +1,46 @@
+services:
+  restaurant-db:
+    image: postgres:15
+    container_name: quickbite-restaurant-db
+    environment:
+      POSTGRES_DB: ${RESTAURANT_DB_NAME:-restaurant_db}
+      POSTGRES_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      POSTGRES_PASSWORD: ${RESTAURANT_DB_PASSWORD:-restaurant_pw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - restaurant_db_data:/var/lib/postgresql/data
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RESTAURANT_DB_USER:-restaurant_user} -d ${RESTAURANT_DB_NAME:-restaurant_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  menu-db:
+    image: postgres:15
+    container_name: quickbite-menu-db
+    environment:
+      POSTGRES_DB: ${MENU_DB_NAME:-menu_db}
+      POSTGRES_USER: ${MENU_DB_USER:-menu_user}
+      POSTGRES_PASSWORD: ${MENU_DB_PASSWORD:-menu_pw}
+    ports:
+      - "5433:5432"
+    volumes:
+      - menu_db_data:/var/lib/postgresql/data
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MENU_DB_USER:-menu_user} -d ${MENU_DB_NAME:-menu_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  quickbite-net:
+    driver: bridge
+
+volumes:
+  restaurant_db_data:
+  menu_db_data:

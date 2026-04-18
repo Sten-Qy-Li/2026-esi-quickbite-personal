@@ -37,7 +37,10 @@ new numbered decision that supersedes this entry.
   No `traceId` in the MVP. Add one only if the team wires Spring Cloud
   Sleuth or similar.
 - **Target phase.** Phase 2 (freeze), Phase 4 (implement for Restaurant).
-- **Answer.** _Pending._
+- **Answer.** Resolved in Phase 2 (frozen in `0020-sierra-lima-contracts.md`)
+  and implemented in Phases 4 and 6 via `GlobalExceptionHandler` +
+  `ErrorResponse` record in both services. Matches the master plan's
+  JSON shape verbatim. No `traceId`.
 
 ### Q2 -- Category vocabulary for `MenuItem.category`
 
@@ -47,7 +50,9 @@ new numbered decision that supersedes this entry.
   `Appetizer`, `Main`, `Dessert`, `Drink`. Keeps the DB flexible; the
   UI can still constrain.
 - **Target phase.** Phase 5 (data model).
-- **Answer.** _Pending._
+- **Answer.** Resolved in Phase 5: free-form `VARCHAR(100)`, no enum.
+  DTO validator is `@NotBlank @Size(max=100)` only. UI may still
+  constrain suggestions to `Appetizer / Main / Dessert / Drink`.
 
 ### Q3 -- HATEOAS links in responses
 
@@ -66,7 +71,10 @@ new numbered decision that supersedes this entry.
   value objects. Flyway schema is unchanged (columns stay flat) but the
   Java entity uses `@Embeddable`.
 - **Target phase.** Phase 3 (Restaurant) and Phase 5 (Menu).
-- **Answer.** _Pending._
+- **Answer.** Resolved in Phases 3 and 5: both embedded. `Restaurant`
+  embeds `Location` (`address`, `city`, `latitude`, `longitude`);
+  `MenuItem` embeds `Price` (`amount`, `currency`). DB columns remain
+  flat per `V1__init.sql`; only the Java mapping uses `@Embeddable`.
 
 ### Q5 -- Restaurant-closed signalling: 200 or 409?
 
@@ -111,7 +119,8 @@ new numbered decision that supersedes this entry.
   `CommandLineRunner` is the fallback if Flyway ordering becomes
   awkward.
 - **Target phase.** Phase 2 (plan), Phase 7 (implement).
-- **Answer.** _Pending._
+- **Answer.** Plan locked in Phase 2: Flyway `V2__seed_demo_data.sql`
+  per service. Implementation still pending -- targeted for Phase 7.
 
 ### Q9 -- Test layer strategy
 
@@ -132,7 +141,10 @@ new numbered decision that supersedes this entry.
   marked as the "system" user. Swap to `SecurityContextHolder`-sourced
   UUID once Phase 7 lands.
 - **Target phase.** Phase 4 (introduce placeholder), Phase 7 (swap).
-- **Answer.** _Pending._
+- **Answer.** Resolved in Phase 2B: `AuditingConfig` in both services
+  returns placeholder UUID `00000000-0000-0000-0000-000000000000`
+  (system user). Phase 7 will replace this with a
+  `SecurityContextHolder`-sourced `Optional<UUID>`.
 
 ## Resolution protocol
 

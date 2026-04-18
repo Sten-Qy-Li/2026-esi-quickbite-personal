@@ -1,0 +1,249 @@
+{
+  "info": {
+    "name": "QuickBite",
+    "description": "Starter collection for Sierra-Lima's Restaurant + Menu services. Folder structure follows master plan Phase 2 Task 13.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth (Login)",
+      "item": [
+        {
+          "name": "Login (placeholder -- owned by User Service / Alfa-Kilo)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"secret\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/auth/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restaurant CRUD",
+      "item": [
+        {
+          "name": "POST /restaurants",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pizza Antonio\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"11:00-22:00\"\n}"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants"]
+            }
+          }
+        },
+        {
+          "name": "GET /restaurants/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /restaurants/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pizza Antonio (updated)\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"10:00-23:00\"\n}"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /restaurants/{id}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"isOpen\": true }"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/status",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "GET /restaurants?city=Tartu&isOpen=true",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants?city=Tartu&isOpen=true",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants"],
+              "query": [
+                { "key": "city", "value": "Tartu" },
+                { "key": "isOpen", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /restaurants/{id}/availability",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "availability"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu CRUD",
+      "item": [
+        {
+          "name": "POST /restaurants/{rid}/menu-items",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Margherita\",\n  \"description\": \"Tomato, mozzarella, basil.\",\n  \"priceAmount\": \"8.50\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/restaurants/{{restaurantId}}/menu-items",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "menu-items"]
+            }
+          }
+        },
+        {
+          "name": "GET /restaurants/{rid}/menu-items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{menuBaseUrl}}/restaurants/{{restaurantId}}/menu-items?category=Main&available=true",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "menu-items"],
+              "query": [
+                { "key": "category", "value": "Main" },
+                { "key": "available", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /menu-items/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /menu-items/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Margherita (updated)\",\n  \"description\": \"Tomato, mozzarella, basil, oregano.\",\n  \"priceAmount\": \"9.00\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /menu-items/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /menu-items/validate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemId}}\", \"quantity\": 2 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "W1 Integration",
+      "item": [],
+      "description": "Populated in Phase 10 when Order Service is wired up."
+    },
+    {
+      "name": "Async Evidence",
+      "item": [],
+      "description": "Populated in Phase 16 for W2 / W3 evidence."
+    },
+    {
+      "name": "Negative Auth",
+      "item": [],
+      "description": "Populated in Phase 7 once JWT filter lands."
+    }
+  ]
+}

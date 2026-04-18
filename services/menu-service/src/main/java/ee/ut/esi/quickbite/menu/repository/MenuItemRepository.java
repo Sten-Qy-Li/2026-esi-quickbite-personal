@@ -22,7 +22,8 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, UUID> {
     @Query("""
         SELECT m FROM MenuItem m
         WHERE m.restaurantId = :restaurantId
-          AND (:category IS NULL OR LOWER(m.category) = LOWER(:category))
+          AND (cast(:category as string) IS NULL
+               OR LOWER(m.category) = LOWER(cast(:category as string)))
           AND (:available IS NULL OR m.available = :available)
         """)
     List<MenuItem> searchForRestaurant(

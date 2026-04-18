@@ -20,7 +20,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
 
     @Query("""
         SELECT r FROM Restaurant r
-        WHERE (:city IS NULL OR LOWER(r.location.city) = LOWER(:city))
+        WHERE (cast(:city as string) IS NULL
+               OR LOWER(r.location.city) = LOWER(cast(:city as string)))
           AND (:open IS NULL OR r.open = :open)
         """)
     List<Restaurant> search(@Param("city") String city, @Param("open") Boolean open);

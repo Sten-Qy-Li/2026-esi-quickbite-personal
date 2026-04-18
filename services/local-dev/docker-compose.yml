@@ -37,6 +37,62 @@ services:
       timeout: 5s
       retries: 10
 
+  restaurant-service:
+    build:
+      context: ../restaurant-service
+      dockerfile: Dockerfile
+    image: quickbite/restaurant-service:local
+    container_name: quickbite-restaurant-service
+    depends_on:
+      restaurant-db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8081"
+      DB_URL: jdbc:postgresql://restaurant-db:5432/${RESTAURANT_DB_NAME:-restaurant_db}
+      DB_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      DB_PASSWORD: ${RESTAURANT_DB_PASSWORD:-restaurant_pw}
+      JWT_SECRET: ${JWT_SECRET:-dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=}
+      JWT_ISSUER: ${JWT_ISSUER:-quickbite-user-service}
+    ports:
+      - "8081:8081"
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  menu-service:
+    build:
+      context: ../menu-service
+      dockerfile: Dockerfile
+    image: quickbite/menu-service:local
+    container_name: quickbite-menu-service
+    depends_on:
+      menu-db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8082"
+      DB_URL: jdbc:postgresql://menu-db:5432/${MENU_DB_NAME:-menu_db}
+      DB_USER: ${MENU_DB_USER:-menu_user}
+      DB_PASSWORD: ${MENU_DB_PASSWORD:-menu_pw}
+      JWT_SECRET: ${JWT_SECRET:-dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=}
+      JWT_ISSUER: ${JWT_ISSUER:-quickbite-user-service}
+    ports:
+      - "8082:8082"
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
 networks:
   quickbite-net:
     driver: bridge

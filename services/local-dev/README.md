@@ -11,12 +11,12 @@ exists, what ports each piece uses, and where to look next.
 
 ```
 local-dev/
-  docker-compose.yml       restaurant-db + menu-db (Spring Boot services run from IntelliJ / mvn)
+  docker-compose.yml       restaurant-db + menu-db + restaurant-service + menu-service
   .env.example             tracked template for all environment variables
   .env.local               git-ignored local overrides (created from .env.example on first run)
   runbook.md               how to bring the stack up, reset data, inspect logs, run services
   postman/
-    QuickBite.postman_collection.json    12-endpoint collection (Phase 2 skeleton)
+    QuickBite.postman_collection.json    Phase 7 collection with JWT auto-mint and negative-auth scenarios
     QuickBite.postman_environment.json   shared variables (base URLs, ids, tokens)
 ```
 
@@ -53,14 +53,23 @@ Vault/KMS) is non-goal **N8** in
 ## Compose topology
 
 - `quickbite-restaurant-db` (PostgreSQL 15): container port 5432 →
-  host port 5432. Named volume `restaurant_db_data`.
+  host port `${RESTAURANT_DB_HOST_PORT:-5432}`. Named volume
+  `restaurant_db_data`. Healthcheck: `pg_isready`.
 - `quickbite-menu-db` (PostgreSQL 15): container port 5432 → host
-  port 5433. Named volume `menu_db_data`.
-- Shared bridge network `quickbite-net`.
+  port `${MENU_DB_HOST_PORT:-5433}`. Named volume `menu_db_data`.
+  Healthcheck: `pg_isready`.
+- `quickbite-restaurant-service` (Spring Boot): host port 8081.
+  `depends_on: restaurant-db (service_healthy)`,
+  `SPRING_PROFILES_ACTIVE=docker`. Healthcheck: `curl /actuator/health`.
+- `quickbite-menu-service` (Spring Boot): host port 8082.
+  `depends_on: menu-db (service_healthy)`,
+  `SPRING_PROFILES_ACTIVE=docker`. Healthcheck: `curl /actuator/health`.
+- Shared bridge network `quickbite-net` -- services reach their DBs
+  via the container hostnames `restaurant-db` / `menu-db`.
 
-Spring Boot services **do not** run in Docker during Phases 2-6 --
-run them from IntelliJ or `mvn spring-boot:run`. See
-[`runbook.md`](runbook.md) §7.
+From Phase 8 onward the full stack runs in Docker Compose. The
+earlier "services from IntelliJ, DBs from Compose" mode still works
+for fast iteration; see [`runbook.md`](runbook.md) §7.
 
 ## Not included here
 
@@ -74,15 +83,18 @@ run them from IntelliJ or `mvn spring-boot:run`. See
 
 ## Current state
 
-Phase 2 scaffolding is in place:
+Phase 8 dockerisation is complete:
 
-- [x] Compose file for both PostgreSQL databases
-- [x] `.env.example` template
-- [x] Runbook for start/reset/logs/health
-- [x] Postman collection skeleton (12 endpoints, all using
-      `{{restaurantBaseUrl}}` / `{{menuBaseUrl}}`)
-- [x] Postman environment with placeholders for `jwtToken`,
-      `customerToken`, `ownerToken`, `adminToken` (populated in Phase 7)
+- [x] Compose file boots both PostgreSQL databases and both Spring
+      Boot services end-to-end
+- [x] `application-docker.properties` per service overrides the DB
+      URL to the container hostname (`restaurant-db` / `menu-db`)
+- [x] `.dockerignore` per service keeps `target/`, `.idea/`,
+      `.claude/`, `.git/` out of the build context
+- [x] DB healthchecks (`pg_isready`) + app healthchecks
+      (`curl /actuator/health`) + `depends_on: service_healthy`
+- [x] `.env.example` template and runbook
+- [x] Postman collection with JWT auto-mint (Phase 7)
 
 Next expansions:
 

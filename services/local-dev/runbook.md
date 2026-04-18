@@ -1,6 +1,9 @@
 # Local-Dev Runbook
 
-Bring up the two PostgreSQL databases used by Sierra-Lima's services.
+Bring up Sierra-Lima's databases and services. From Phase 8 onward
+the full stack (databases + Spring Boot services) runs in Docker
+Compose. You can still run the services from IntelliJ against just
+the DB containers -- see §7.
 
 ## 1. One-time setup
 
@@ -17,25 +20,31 @@ Everything else can use the defaults.
 > `5433`, the Docker container will fail to start, or the Spring
 > Boot service will try to talk to the wrong database. Override
 > `RESTAURANT_DB_HOST_PORT` and/or `MENU_DB_HOST_PORT` in
-> `.env.local` -- e.g. `5442` / `5443` -- and also set `DB_URL` in
-> the service's IntelliJ Run Configuration to match. See §3 below
-> for the JDBC URL format.
+> `.env.local` -- e.g. `5442` / `5443`. The in-container DB URLs are
+> unaffected (containers talk over `quickbite-net`), so no further
+> service config is needed when running the Docker stack. For the
+> IntelliJ mode in §7 you would also need to set `DB_URL` in the
+> Run Configuration to match the new host port.
 
-## 2. Start the stack
+## 2. Start the full stack (Phase 8 onward)
 
 ```bash
 cd services/local-dev
-docker compose --env-file .env.local up -d
+docker compose --env-file .env.local up --build -d
 ```
 
 Expected container names: `quickbite-restaurant-db`,
-`quickbite-menu-db`. Check both are **healthy** (not just running):
+`quickbite-menu-db`, `quickbite-restaurant-service`,
+`quickbite-menu-service`. Check all four are **healthy** (not just
+running):
 
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-Wait until each row shows `Up ... (healthy)`.
+Wait until each row shows `Up ... (healthy)`. On a cold start the
+first `--build` takes 3-5 minutes (Maven dependency download).
+Subsequent `up -d` reuses the cached layers and is ~30 seconds.
 
 ## 3. Connect to a database
 
@@ -76,31 +85,33 @@ cd services/local-dev
 docker compose down         # keeps data in volumes
 ```
 
-## 7. Run the Spring Boot services
+## 7. Optional: run the services from IntelliJ against Compose DBs
 
-Services do **not** run in Docker Compose during Phases 2-6 -- only
-the databases do. Start each service locally with:
+If you want faster feedback loops (hot reload, debugger) than a
+`docker compose up --build`, start only the DB services in Compose
+and run the Spring Boot services on the host:
+
+```bash
+cd services/local-dev
+docker compose --env-file .env.local up -d restaurant-db menu-db
+```
+
+Then in two terminals:
 
 ```bash
 cd services/restaurant-service
 mvn spring-boot:run
 
-# In a second terminal:
 cd services/menu-service
 mvn spring-boot:run
 ```
 
-Alternatively, run them from IntelliJ IDEA:
-`RestaurantServiceApplication.java` → Run, and
-`MenuServiceApplication.java` → Run.
-
-Each service reads DB connection info from environment variables. When
-running from IntelliJ on the host, the defaults in
-`application.properties` already point at the Compose ports
-(`localhost:5432` for Restaurant, `localhost:5433` for Menu), so no
-extra setup is needed unless you changed credentials in `.env.local`.
-If you did, override in IntelliJ's Run Configuration under
-"Environment variables":
+Or run them from IntelliJ IDEA (`RestaurantServiceApplication.java`
+→ Run, `MenuServiceApplication.java` → Run). The default
+`application.properties` points at `localhost:5432` / `localhost:5433`,
+so no extra config is needed unless you overrode credentials or host
+ports in `.env.local`. If you did, set IntelliJ Run Configuration
+environment variables:
 
 ```
 DB_URL=jdbc:postgresql://localhost:5432/restaurant_db
@@ -112,7 +123,7 @@ DB_PASSWORD=<what you put in .env.local>
 
 ## 8. Verify health endpoints
 
-Once both services are running:
+Once the stack is up (either via §2 or §7):
 
 ```bash
 curl http://localhost:8081/actuator/health

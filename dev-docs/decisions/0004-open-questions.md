@@ -87,7 +87,10 @@ new numbered decision that supersedes this entry.
 - **Current lean.** Public by default (per master plan §5.1 default 1).
   Tighten to customer-only only if the team decides so in Phase 1.
 - **Target phase.** Phase 1.
-- **Answer.** _Pending._
+- **Answer.** Resolved by [`0010-auth-contract.md`](./0010-auth-contract.md)
+  §6 on 2026-04-18: public. Short rationale: W1 does not browse, the
+  tightening is a security-filter change, and a login wall is not
+  required for the CP#1 browse demo.
 
 ### Q7 -- Pagination strategy for `GET /restaurants`
 

@@ -1,7 +1,5 @@
 package ee.ut.esi.quickbite.menu.dto;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -19,8 +17,6 @@ public record UpdateMenuItemRequest(
     String description,
 
     @NotNull(message = "priceAmount is required")
-    @DecimalMin(value = "0.01", inclusive = true, message = "priceAmount must be greater than 0")
-    @Digits(integer = 17, fraction = 2, message = "priceAmount must have at most 2 decimal places")
     BigDecimal priceAmount,
 
     @NotBlank(message = "priceCurrency is required")

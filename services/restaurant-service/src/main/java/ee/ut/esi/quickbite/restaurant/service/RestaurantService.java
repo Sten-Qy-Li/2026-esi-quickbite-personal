@@ -6,8 +6,10 @@ import ee.ut.esi.quickbite.restaurant.dto.AvailabilityResponse;
 import ee.ut.esi.quickbite.restaurant.dto.CreateRestaurantRequest;
 import ee.ut.esi.quickbite.restaurant.dto.RestaurantResponse;
 import ee.ut.esi.quickbite.restaurant.dto.UpdateRestaurantRequest;
+import ee.ut.esi.quickbite.restaurant.exception.DuplicateRestaurantException;
 import ee.ut.esi.quickbite.restaurant.exception.RestaurantNotFoundException;
 import ee.ut.esi.quickbite.restaurant.repository.RestaurantRepository;
+import ee.ut.esi.quickbite.restaurant.security.CurrentUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,21 +19,23 @@ import java.util.UUID;
 @Service
 public class RestaurantService {
 
-    // Phase 3 placeholder — replaced by JWT-derived ownerId in Phase 7.
-    private static final UUID PLACEHOLDER_OWNER_ID =
-        UUID.fromString("00000000-0000-0000-0000-000000000001");
-
     private final RestaurantRepository restaurants;
+    private final CurrentUser currentUser;
 
-    public RestaurantService(RestaurantRepository restaurants) {
+    public RestaurantService(RestaurantRepository restaurants, CurrentUser currentUser) {
         this.restaurants = restaurants;
+        this.currentUser = currentUser;
     }
 
     @Transactional
     public RestaurantResponse create(CreateRestaurantRequest req) {
+        UUID ownerId = currentUser.require().userId();
+        if (restaurants.existsByOwnerIdAndNameIgnoreCase(ownerId, req.name())) {
+            throw new DuplicateRestaurantException(ownerId, req.name());
+        }
         Location location = new Location(req.address(), req.city(), req.latitude(), req.longitude());
         Restaurant saved = restaurants.save(
-            new Restaurant(PLACEHOLDER_OWNER_ID, req.name(), location, req.operatingHours())
+            new Restaurant(ownerId, req.name(), location, req.operatingHours())
         );
         return RestaurantResponse.from(saved);
     }

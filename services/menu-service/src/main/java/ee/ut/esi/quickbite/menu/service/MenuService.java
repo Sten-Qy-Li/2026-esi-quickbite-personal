@@ -7,8 +7,11 @@ import ee.ut.esi.quickbite.menu.dto.MenuItemResponse;
 import ee.ut.esi.quickbite.menu.dto.UpdateMenuItemRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
+import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
 import ee.ut.esi.quickbite.menu.repository.MenuItemRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,10 @@ import java.util.stream.Collectors;
 @Service
 public class MenuService {
 
+    private static final Logger log = LoggerFactory.getLogger(MenuService.class);
+    private static final Set<String> KNOWN_CATEGORIES =
+        Set.of("Appetizer", "Main", "Dessert", "Drink");
+
     private final MenuItemRepository menuItems;
 
     public MenuService(MenuItemRepository menuItems) {
@@ -31,6 +38,8 @@ public class MenuService {
 
     @Transactional
     public MenuItemResponse create(UUID restaurantId, CreateMenuItemRequest req) {
+        validatePrice(req.priceAmount());
+        warnIfUnknownCategory(req.category());
         boolean available = req.isAvailable() == null ? true : req.isAvailable();
         Price price = new Price(req.priceAmount(), req.priceCurrency());
         MenuItem saved = menuItems.save(new MenuItem(
@@ -54,6 +63,8 @@ public class MenuService {
     @Transactional
     public MenuItemResponse update(UUID id, UpdateMenuItemRequest req) {
         MenuItem m = requireMenuItem(id);
+        validatePrice(req.priceAmount());
+        warnIfUnknownCategory(req.category());
         Price price = new Price(req.priceAmount(), req.priceCurrency());
         m.updateDetails(req.name(), req.description(), price, req.category(), req.isAvailable());
         return MenuItemResponse.from(m);
@@ -101,6 +112,21 @@ public class MenuService {
 
         boolean allValid = lines.stream().allMatch(l -> l.exists() && l.available());
         return new ValidateMenuItemsResponse(allValid, lines);
+    }
+
+    private static void validatePrice(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidPriceException(amount, "must be greater than 0");
+        }
+        if (amount.stripTrailingZeros().scale() > 2) {
+            throw new InvalidPriceException(amount, "must have at most 2 decimal places");
+        }
+    }
+
+    private static void warnIfUnknownCategory(String category) {
+        if (category != null && !KNOWN_CATEGORIES.contains(category) && log.isDebugEnabled()) {
+            log.debug("Menu item created with unknown category '{}' (allowed: {})", category, KNOWN_CATEGORIES);
+        }
     }
 
     private MenuItem requireMenuItem(UUID id) {

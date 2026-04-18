@@ -16,6 +16,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
 
     List<Restaurant> findByOpenTrue();
 
+    boolean existsByOwnerIdAndNameIgnoreCase(UUID ownerId, String name);
+
     @Query("""
         SELECT r FROM Restaurant r
         WHERE (:city IS NULL OR LOWER(r.location.city) = LOWER(:city))

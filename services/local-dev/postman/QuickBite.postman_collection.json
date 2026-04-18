@@ -1,15 +1,144 @@
 {
   "info": {
     "name": "QuickBite",
-    "description": "Starter collection for Sierra-Lima's Restaurant + Menu services. Folder structure follows master plan Phase 2 Task 13.",
+    "description": "Sierra-Lima's Restaurant + Menu services. Phase 7 hardening: tokens auto-minted for each of the 3 roles via a collection-level pre-request script (CryptoJS HS256), so every request has a fresh customerToken / ownerToken / adminToken in scope. Negative Auth folder covers the 401 / 403 / 400 / 404 / 422 edges.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Dev-only JWT minter. Signs with the same HS256 secret baked into",
+          "// restaurant-service and menu-service application.properties",
+          "// (JWT_SECRET env var overrides). Keep in sync with JwtDevMint.java.",
+          "",
+          "const base64Secret = pm.environment.get('jwtSecret')",
+          "    || 'dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=';",
+          "const issuer = pm.environment.get('jwtIssuer') || 'quickbite-user-service';",
+          "",
+          "const b64url = (b64) => b64.replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');",
+          "const encode = (obj) => b64url(CryptoJS.enc.Base64.stringify(",
+          "    CryptoJS.enc.Utf8.parse(JSON.stringify(obj))));",
+          "",
+          "const mint = (userId, subject, role) => {",
+          "    const now = Math.floor(Date.now() / 1000);",
+          "    const header = { alg: 'HS256', typ: 'JWT' };",
+          "    const payload = {",
+          "        iss: issuer,",
+          "        sub: subject,",
+          "        userId: userId,",
+          "        role: role,",
+          "        tokenType: 'USER',",
+          "        iat: now,",
+          "        exp: now + 3600",
+          "    };",
+          "    const signingInput = encode(header) + '.' + encode(payload);",
+          "    const key = CryptoJS.enc.Base64.parse(base64Secret);",
+          "    const sig = b64url(CryptoJS.enc.Base64.stringify(",
+          "        CryptoJS.HmacSHA256(signingInput, key)));",
+          "    return signingInput + '.' + sig;",
+          "};",
+          "",
+          "const customerToken = mint('00000000-0000-0000-0000-0000000000c1', 'dev-customer', 'Customer');",
+          "const ownerToken    = mint('00000000-0000-0000-0000-000000000001', 'dev-owner',    'RestaurantOwner');",
+          "const adminToken    = mint('00000000-0000-0000-0000-0000000000a1', 'dev-admin',    'Admin');",
+          "",
+          "pm.environment.set('customerToken', customerToken);",
+          "pm.environment.set('ownerToken',    ownerToken);",
+          "pm.environment.set('adminToken',    adminToken);",
+          "// Back-compat alias for pre-Phase-7 requests.",
+          "pm.environment.set('jwtToken', ownerToken);"
+        ]
+      }
+    }
+  ],
   "item": [
     {
-      "name": "Auth (Login)",
+      "name": "Auth (Tokens)",
+      "description": "Tokens are minted client-side by the collection-level pre-request script. These stub requests exist so you can run them to confirm the target service is reachable and print the minted token in the console. Once Alfa-Kilo's User Service ships, replace with a real `POST /api/auth/login`.",
       "item": [
         {
-          "name": "Login (placeholder -- owned by User Service / Alfa-Kilo)",
+          "name": "Mint Customer Token (prints to console)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('customerToken =', pm.environment.get('customerToken'));",
+                  "pm.test('customer token minted', () => {",
+                  "    pm.expect(pm.environment.get('customerToken')).to.match(/^[\\w-]+\\.[\\w-]+\\.[\\w-]+$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/actuator/health",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Mint Owner Token (prints to console)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('ownerToken =', pm.environment.get('ownerToken'));",
+                  "pm.test('owner token minted', () => {",
+                  "    pm.expect(pm.environment.get('ownerToken')).to.match(/^[\\w-]+\\.[\\w-]+\\.[\\w-]+$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/actuator/health",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Mint Admin Token (prints to console)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('adminToken =', pm.environment.get('adminToken'));",
+                  "pm.test('admin token minted', () => {",
+                  "    pm.expect(pm.environment.get('adminToken')).to.match(/^[\\w-]+\\.[\\w-]+\\.[\\w-]+$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{menuBaseUrl}}/actuator/health",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Future: POST /api/auth/login (owned by User Service / Alfa-Kilo)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -242,8 +371,230 @@
     },
     {
       "name": "Negative Auth",
-      "item": [],
-      "description": "Populated in Phase 7 once JWT filter lands."
+      "description": "Route-protection matrix evidence. Each request has a test assertion that pins the expected status.",
+      "item": [
+        {
+          "name": "[401] GET /restaurants/{id}/availability  no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('envelope has status field', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('status', 401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "[401] GET /availability  garbage Bearer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer this.is.not-a-valid-token" }],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "[403] POST /restaurants  customer token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Illegal Restaurant\",\n  \"address\": \"nowhere\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.37,\n  \"longitude\": 26.72,\n  \"operatingHours\": \"09:00-21:00\"\n}"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants"]
+            }
+          }
+        },
+        {
+          "name": "[403] PATCH /restaurants/{id}/status  customer token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"isOpen\": true }"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/status",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "[403] DELETE /menu-items/{id}  customer token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "[404] GET /restaurants/{missing-uuid}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('envelope error = Not Found', () => {",
+                  "    pm.expect(pm.response.json().error).to.eql('Not Found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/ffffffff-ffff-ffff-ffff-ffffffffffff",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "ffffffff-ffff-ffff-ffff-ffffffffffff"]
+            }
+          }
+        },
+        {
+          "name": "[400] POST /menu-items/validate  empty items",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('validationErrors present', () => {",
+                  "    pm.expect(pm.response.json().validationErrors).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"items\": [] }"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[422] POST /restaurants/{rid}/menu-items  priceAmount=0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Free lunch\",\n  \"priceAmount\": 0,\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/restaurants/{{restaurantId}}/menu-items",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "menu-items"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

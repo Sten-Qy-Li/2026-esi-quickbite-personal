@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -66,13 +69,14 @@ public class RestaurantController {
     }
 
     @GetMapping
-    @Operation(summary = "List restaurants; optional filters by city and open status")
-    @ApiResponse(responseCode = "200", description = "List of restaurants")
-    public List<RestaurantResponse> list(
+    @Operation(summary = "List restaurants; optional filters by city and open status (paged)")
+    @ApiResponse(responseCode = "200", description = "Paged list of restaurants")
+    public Page<RestaurantResponse> list(
         @RequestParam(required = false) String city,
-        @RequestParam(required = false) Boolean isOpen
+        @RequestParam(required = false) Boolean isOpen,
+        @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        return service.search(city, isOpen);
+        return service.search(city, isOpen, pageable);
     }
 
     @PutMapping("/{id}")

@@ -12,6 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -65,9 +68,13 @@ class RestaurantControllerTest {
 
     @Test
     void listRestaurants_isPublic() throws Exception {
-        when(service.search(null, null)).thenReturn(List.of());
+        Page<RestaurantResponse> empty = new PageImpl<>(List.of(), Pageable.ofSize(20), 0);
+        when(service.search(eq(null), eq(null), any(Pageable.class))).thenReturn(empty);
         mvc.perform(get("/restaurants"))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.totalElements").value(0))
+            .andExpect(jsonPath("$.pageable").exists());
     }
 
     @Test
@@ -162,6 +169,22 @@ class RestaurantControllerTest {
                 .content(invalidBody))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.validationErrors[?(@.field == 'name')]").exists());
+    }
+
+    @Test
+    void createRestaurant_impossibleOperatingHoursReturns400() throws Exception {
+        String invalidBody = """
+            { "name": "Pizza Antonio",
+              "address": "Ruutli 12", "city": "Tartu",
+              "latitude": 58.37, "longitude": 26.72,
+              "operatingHours": "99:99-99:99" }
+            """;
+        mvc.perform(post("/restaurants")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(invalidBody))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.validationErrors[?(@.field == 'operatingHours')]").exists());
     }
 
     @Test

@@ -11,6 +11,7 @@ import ee.ut.esi.quickbite.menu.events.AvailabilityChangedEvent;
 import ee.ut.esi.quickbite.menu.events.MenuEventPublisher;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
+import ee.ut.esi.quickbite.menu.exception.MixedCurrencyException;
 import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
 import ee.ut.esi.quickbite.menu.repository.MenuItemRepository;
 import ee.ut.esi.quickbite.menu.security.AuthenticatedUser;
@@ -341,6 +342,24 @@ class MenuServiceTest {
         ValidateMenuItemsResponse.Line thirdLine = response.items().get(2);
         assertThat(thirdLine.exists()).isFalse();
         assertThat(thirdLine.error()).isEqualTo("MENU_ITEM_NOT_FOUND");
+    }
+
+    @Test
+    void validate_mixedCurrencies_throwsMixedCurrencyException() {
+        MenuItem eurItem = new MenuItem(RESTAURANT_ID, "Margherita", null,
+            new Price(new BigDecimal("8.50"), "EUR"), "Main", true);
+        MenuItem usdItem = new MenuItem(RESTAURANT_ID, "Coke", null,
+            new Price(new BigDecimal("3.50"), "USD"), "Drink", true);
+        when(menuItems.findAllByMenuItemIdIn(anySet()))
+            .thenReturn(List.of(eurItem, usdItem));
+
+        ValidateMenuItemsRequest request = new ValidateMenuItemsRequest(List.of(
+            new ValidateMenuItemsRequest.Line(eurItem.getMenuItemId(), 1),
+            new ValidateMenuItemsRequest.Line(usdItem.getMenuItemId(), 1)
+        ));
+
+        assertThatThrownBy(() -> service.validate(request))
+            .isInstanceOf(MixedCurrencyException.class);
     }
 
     @Test

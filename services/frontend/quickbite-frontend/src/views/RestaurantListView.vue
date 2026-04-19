@@ -90,7 +90,13 @@ export default {
         const query = params.toString();
         const path = query ? `/api/restaurants?${query}` : '/api/restaurants';
         const data = await api.get(path);
-        this.restaurants = Array.isArray(data) ? data : [];
+        if (data && Array.isArray(data.content)) {
+          this.restaurants = data.content;
+        } else if (Array.isArray(data)) {
+          this.restaurants = data;
+        } else {
+          this.restaurants = [];
+        }
       } catch (err) {
         this.error = err instanceof ApiError ? err.message : 'Could not load restaurants.';
         this.restaurants = [];

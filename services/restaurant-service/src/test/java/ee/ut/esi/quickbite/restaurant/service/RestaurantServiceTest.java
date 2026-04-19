@@ -165,4 +165,32 @@ class RestaurantServiceTest {
         assertThat(availability.isOpen()).isTrue();
         assertThat(availability.operatingHours()).isEqualTo("11:00-22:00");
     }
+
+    @Test
+    void availability_malformedOperatingHours_doesNotAcceptOrders() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Bad Data",
+            new Location("Addr", "Tartu", 58.0, 26.0), "99:99-99:99");
+        existing.setStatus(true);
+        when(restaurants.findById(id)).thenReturn(Optional.of(existing));
+
+        var availability = service.availability(id);
+
+        assertThat(availability.isOpen()).isTrue();
+        assertThat(availability.acceptsOrders()).isFalse();
+    }
+
+    @Test
+    void availability_unparseableOperatingHours_doesNotAcceptOrders() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Bad Data",
+            new Location("Addr", "Tartu", 58.0, 26.0), "not-a-time");
+        existing.setStatus(true);
+        when(restaurants.findById(id)).thenReturn(Optional.of(existing));
+
+        var availability = service.availability(id);
+
+        assertThat(availability.isOpen()).isTrue();
+        assertThat(availability.acceptsOrders()).isFalse();
+    }
 }

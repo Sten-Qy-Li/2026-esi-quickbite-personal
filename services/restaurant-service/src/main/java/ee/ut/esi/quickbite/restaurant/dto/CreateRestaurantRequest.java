@@ -30,7 +30,7 @@ public record CreateRestaurantRequest(
     @DecimalMax(value = "180.0",  message = "longitude must be <= 180")
     Double longitude,
 
-    @Pattern(regexp = "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$",
+    @Pattern(regexp = "^[0-2][0-9]:[0-5][0-9]-[0-2][0-9]:[0-5][0-9]$",
              message = "operatingHours must match HH:MM-HH:MM (e.g. 09:00-22:00)")
     String operatingHours
 

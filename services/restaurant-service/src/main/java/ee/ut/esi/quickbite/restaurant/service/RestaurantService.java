@@ -15,6 +15,8 @@ import ee.ut.esi.quickbite.restaurant.security.SecurityRoles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -66,10 +67,8 @@ public class RestaurantService {
     }
 
     @Transactional(readOnly = true)
-    public List<RestaurantResponse> search(String city, Boolean isOpen) {
-        return restaurants.search(city, isOpen).stream()
-            .map(RestaurantResponse::from)
-            .toList();
+    public Page<RestaurantResponse> search(String city, Boolean isOpen, Pageable pageable) {
+        return restaurants.search(city, isOpen, pageable).map(RestaurantResponse::from);
     }
 
     @Transactional
@@ -123,7 +122,8 @@ public class RestaurantService {
         }
         String[] parts = operatingHours.split("-", 2);
         if (parts.length != 2) {
-            return true;
+            log.warn("malformed operatingHours (no '-' separator): {}", operatingHours);
+            return false;
         }
         LocalTime start;
         LocalTime end;
@@ -131,7 +131,8 @@ public class RestaurantService {
             start = LocalTime.parse(parts[0].trim());
             end = LocalTime.parse(parts[1].trim());
         } catch (Exception e) {
-            return true;
+            log.warn("malformed operatingHours (unparseable times): {}", operatingHours);
+            return false;
         }
         LocalTime now = LocalTime.now(clock.withZone(OPERATING_HOURS_ZONE));
         if (start.equals(end)) {

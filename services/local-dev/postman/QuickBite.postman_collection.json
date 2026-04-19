@@ -266,6 +266,21 @@
       "item": [
         {
           "name": "POST /restaurants/{rid}/menu-items",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body && body.menuItemId) {",
+                  "    pm.environment.set('createdMenuItemId', body.menuItemId);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -274,7 +289,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Margherita\",\n  \"description\": \"Tomato, mozzarella, basil.\",\n  \"priceAmount\": \"8.50\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+              "raw": "{\n  \"name\": \"Margherita (CRUD fixture)\",\n  \"description\": \"Tomato, mozzarella, basil.\",\n  \"priceAmount\": \"8.50\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
             },
             "url": {
               "raw": "{{menuBaseUrl}}/restaurants/{{restaurantId}}/menu-items",
@@ -332,13 +347,24 @@
         },
         {
           "name": "DELETE /menu-items/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
             "url": {
-              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "raw": "{{menuBaseUrl}}/menu-items/{{createdMenuItemId}}",
               "host": ["{{menuBaseUrl}}"],
-              "path": ["menu-items", "{{menuItemId}}"]
+              "path": ["menu-items", "{{createdMenuItemId}}"]
             }
           }
         },
@@ -878,14 +904,18 @@
           }
         },
         {
-          "name": "[422] POST /restaurants/{rid}/menu-items  priceAmount=0",
+          "name": "[400] POST /restaurants/{rid}/menu-items  priceAmount=0",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status is 422', () => pm.response.to.have.status(422));"
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('validationErrors includes priceAmount', () => {",
+                  "    const errors = pm.response.json().validationErrors || [];",
+                  "    pm.expect(errors.map(e => e.field)).to.include('priceAmount');",
+                  "});"
                 ]
               }
             }

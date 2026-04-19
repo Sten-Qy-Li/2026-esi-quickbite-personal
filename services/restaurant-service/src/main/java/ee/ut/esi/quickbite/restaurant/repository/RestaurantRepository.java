@@ -1,6 +1,8 @@
 package ee.ut.esi.quickbite.restaurant.repository;
 
 import ee.ut.esi.quickbite.restaurant.domain.Restaurant;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,5 +26,5 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
                OR LOWER(r.location.city) = LOWER(cast(:city as string)))
           AND (:open IS NULL OR r.open = :open)
         """)
-    List<Restaurant> search(@Param("city") String city, @Param("open") Boolean open);
+    Page<Restaurant> search(@Param("city") String city, @Param("open") Boolean open, Pageable pageable);
 }

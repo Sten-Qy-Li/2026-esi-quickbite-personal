@@ -41,6 +41,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, null);
     }
 
+    @ExceptionHandler(MixedCurrencyException.class)
+    public ResponseEntity<ErrorResponse> handleMixedCurrency(MixedCurrencyException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
         log.warn("security denial 403 method={} path={} reason={}",

@@ -11,6 +11,7 @@ import ee.ut.esi.quickbite.menu.events.AvailabilityChangedEvent;
 import ee.ut.esi.quickbite.menu.events.MenuEventPublisher;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
+import ee.ut.esi.quickbite.menu.exception.MixedCurrencyException;
 import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
 import ee.ut.esi.quickbite.menu.repository.MenuItemRepository;
 import ee.ut.esi.quickbite.menu.security.AuthenticatedUser;
@@ -30,6 +31,7 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -160,6 +162,14 @@ public class MenuService {
 
         Map<UUID, MenuItem> byId = menuItems.findAllByMenuItemIdIn(ids).stream()
             .collect(Collectors.toMap(MenuItem::getMenuItemId, m -> m, (a, b) -> a, LinkedHashMap::new));
+
+        Set<String> distinctCurrencies = byId.values().stream()
+            .map(m -> m.getPrice().getCurrency())
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (distinctCurrencies.size() > 1) {
+            throw new MixedCurrencyException(distinctCurrencies);
+        }
 
         List<ValidateMenuItemsResponse.Line> lines = req.items().stream().map(line -> {
             MenuItem m = byId.get(line.menuItemId());

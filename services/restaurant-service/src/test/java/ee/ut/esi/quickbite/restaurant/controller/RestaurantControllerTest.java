@@ -23,10 +23,12 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -176,6 +178,29 @@ class RestaurantControllerTest {
                 .header("Authorization", "Bearer " + customerToken)
                 .content("{\"isOpen\": true}"))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void putRestaurant_foreignOwnerForbidden() throws Exception {
+        doThrow(new org.springframework.security.access.AccessDeniedException(
+            "User does not own restaurant " + RESTAURANT_ID))
+            .when(service).update(eq(RESTAURANT_ID), any());
+        mvc.perform(put("/restaurants/{id}", RESTAURANT_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(validCreateBody()))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
+    void patchStatus_adminBypassesOwnership() throws Exception {
+        when(service.setStatus(eq(RESTAURANT_ID), eq(true))).thenReturn(sampleResponse());
+        mvc.perform(patch("/restaurants/{id}/status", RESTAURANT_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + adminToken)
+                .content("{\"isOpen\": true}"))
+            .andExpect(status().isOk());
     }
 
     private static String validCreateBody() {

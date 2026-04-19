@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -91,6 +92,7 @@ class RestaurantServiceTest {
         Restaurant existing = new Restaurant(OWNER_ID, "Old Name",
             new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
         when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        when(currentUser.require()).thenReturn(ownerPrincipal);
 
         RestaurantResponse updated = service.update(id, new UpdateRestaurantRequest(
             "New Name", "Addr 2", "Tartu", 58.1, 26.1, "11:00-23:00"
@@ -99,6 +101,55 @@ class RestaurantServiceTest {
         assertThat(updated.name()).isEqualTo("New Name");
         assertThat(updated.city()).isEqualTo("Tartu");
         assertThat(updated.operatingHours()).isEqualTo("11:00-23:00");
+    }
+
+    @Test
+    void update_deniedWhenCallerIsNotOwnerOrAdmin() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Old Name",
+            new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
+        when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        AuthenticatedUser otherOwner = new AuthenticatedUser(
+            UUID.fromString("00000000-0000-0000-0000-000000000002"),
+            "RestaurantOwner", "USER", null);
+        when(currentUser.require()).thenReturn(otherOwner);
+
+        assertThatThrownBy(() -> service.update(id, new UpdateRestaurantRequest(
+            "New Name", "Addr 2", "Tartu", 58.1, 26.1, "11:00-23:00"
+        ))).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void update_adminPassesOwnershipCheck() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Old Name",
+            new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
+        when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        AuthenticatedUser admin = new AuthenticatedUser(
+            UUID.fromString("00000000-0000-0000-0000-0000000000a1"),
+            "Admin", "USER", null);
+        when(currentUser.require()).thenReturn(admin);
+
+        RestaurantResponse updated = service.update(id, new UpdateRestaurantRequest(
+            "Admin Rename", "Addr", "Tartu", 58.0, 26.0, "11:00-22:00"
+        ));
+
+        assertThat(updated.name()).isEqualTo("Admin Rename");
+    }
+
+    @Test
+    void setStatus_deniedWhenCallerIsNotOwnerOrAdmin() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Old Name",
+            new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
+        when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        AuthenticatedUser otherOwner = new AuthenticatedUser(
+            UUID.fromString("00000000-0000-0000-0000-000000000002"),
+            "RestaurantOwner", "USER", null);
+        when(currentUser.require()).thenReturn(otherOwner);
+
+        assertThatThrownBy(() -> service.setStatus(id, true))
+            .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

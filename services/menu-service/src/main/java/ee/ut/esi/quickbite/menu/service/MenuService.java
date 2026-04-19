@@ -9,9 +9,15 @@ import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
+import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
 import ee.ut.esi.quickbite.menu.repository.MenuItemRepository;
+import ee.ut.esi.quickbite.menu.security.AuthenticatedUser;
+import ee.ut.esi.quickbite.menu.security.CurrentUser;
+import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
+import ee.ut.esi.quickbite.menu.security.SecurityRoles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,13 +39,20 @@ public class MenuService {
         Set.of("Appetizer", "Main", "Dessert", "Drink");
 
     private final MenuItemRepository menuItems;
+    private final CurrentUser currentUser;
+    private final RestaurantOwnershipClient restaurantOwnership;
 
-    public MenuService(MenuItemRepository menuItems) {
+    public MenuService(MenuItemRepository menuItems,
+                       CurrentUser currentUser,
+                       RestaurantOwnershipClient restaurantOwnership) {
         this.menuItems = menuItems;
+        this.currentUser = currentUser;
+        this.restaurantOwnership = restaurantOwnership;
     }
 
     @Transactional
     public MenuItemResponse create(UUID restaurantId, CreateMenuItemRequest req) {
+        requireOwnerOrAdmin(restaurantId, "POST /restaurants/" + restaurantId + "/menu-items");
         validatePrice(req.priceAmount());
         warnIfUnknownCategory(req.category());
         boolean available = req.isAvailable() == null ? true : req.isAvailable();
@@ -64,6 +78,7 @@ public class MenuService {
     @Transactional
     public MenuItemResponse update(UUID id, UpdateMenuItemRequest req) {
         MenuItem m = requireMenuItem(id);
+        requireOwnerOrAdmin(m.getRestaurantId(), "PUT /menu-items/" + id);
         validatePrice(req.priceAmount());
         warnIfUnknownCategory(req.category());
         Price price = new Price(req.priceAmount(), req.priceCurrency());
@@ -74,7 +89,26 @@ public class MenuService {
     @Transactional
     public void delete(UUID id) {
         MenuItem m = requireMenuItem(id);
+        requireOwnerOrAdmin(m.getRestaurantId(), "DELETE /menu-items/" + id);
         menuItems.delete(m);
+    }
+
+    private void requireOwnerOrAdmin(UUID restaurantId, String endpoint) {
+        AuthenticatedUser actor = currentUser.require();
+        if (SecurityRoles.ADMIN.equals(actor.role())) {
+            return;
+        }
+        Optional<UUID> ownerId = restaurantOwnership.findOwnerId(restaurantId);
+        if (ownerId.isEmpty()) {
+            throw new RestaurantNotFoundForMenuException(restaurantId);
+        }
+        if (ownerId.get().equals(actor.userId())) {
+            return;
+        }
+        log.warn("ownership denial actor={} role={} endpoint={} restaurantId={} ownerId={}",
+            actor.userId(), actor.role(), endpoint, restaurantId, ownerId.get());
+        throw new AccessDeniedException(
+            "User " + actor.userId() + " does not own restaurant " + restaurantId);
     }
 
     @Transactional(readOnly = true)

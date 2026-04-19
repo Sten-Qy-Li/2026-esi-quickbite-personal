@@ -9,12 +9,17 @@ import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
+import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
 import ee.ut.esi.quickbite.menu.repository.MenuItemRepository;
+import ee.ut.esi.quickbite.menu.security.AuthenticatedUser;
+import ee.ut.esi.quickbite.menu.security.CurrentUser;
+import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,12 +38,32 @@ class MenuServiceTest {
 
     private static final UUID RESTAURANT_ID =
         UUID.fromString("d0000001-0000-0000-0000-000000000001");
+    private static final UUID OWNER_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_OWNER_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID ADMIN_ID =
+        UUID.fromString("00000000-0000-0000-0000-0000000000a1");
 
     @Mock
     private MenuItemRepository menuItems;
 
-    @InjectMocks
+    @Mock
+    private CurrentUser currentUser;
+
+    @Mock
+    private RestaurantOwnershipClient restaurantOwnership;
+
     private MenuService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new MenuService(menuItems, currentUser, restaurantOwnership);
+        lenient().when(currentUser.require()).thenReturn(
+            new AuthenticatedUser(OWNER_ID, "RestaurantOwner", "USER", null));
+        lenient().when(restaurantOwnership.findOwnerId(RESTAURANT_ID))
+            .thenReturn(Optional.of(OWNER_ID));
+    }
 
     @Test
     void create_persistsItemWithDefaultAvailable() {
@@ -118,6 +144,53 @@ class MenuServiceTest {
 
         assertThatThrownBy(() -> service.delete(id))
             .isInstanceOf(MenuItemNotFoundException.class);
+    }
+
+    @Test
+    void create_deniedWhenCallerIsNotOwnerOrAdmin() {
+        when(currentUser.require()).thenReturn(
+            new AuthenticatedUser(OTHER_OWNER_ID, "RestaurantOwner", "USER", null));
+        when(restaurantOwnership.findOwnerId(RESTAURANT_ID)).thenReturn(Optional.of(OWNER_ID));
+
+        assertThatThrownBy(() -> service.create(RESTAURANT_ID, new CreateMenuItemRequest(
+            "Margherita", null, new BigDecimal("8.50"), "EUR", "Main", true
+        ))).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void create_failsWhenOwningRestaurantUnknown() {
+        when(restaurantOwnership.findOwnerId(RESTAURANT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(RESTAURANT_ID, new CreateMenuItemRequest(
+            "Margherita", null, new BigDecimal("8.50"), "EUR", "Main", true
+        ))).isInstanceOf(RestaurantNotFoundForMenuException.class);
+    }
+
+    @Test
+    void create_adminBypassesOwnershipCheck() {
+        when(currentUser.require()).thenReturn(
+            new AuthenticatedUser(ADMIN_ID, "Admin", "USER", null));
+        when(menuItems.save(any(MenuItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        MenuItemResponse response = service.create(RESTAURANT_ID, new CreateMenuItemRequest(
+            "Admin Added", null, new BigDecimal("5.00"), "EUR", "Main", true
+        ));
+
+        assertThat(response.name()).isEqualTo("Admin Added");
+    }
+
+    @Test
+    void delete_deniedWhenCallerIsNotOwnerOrAdmin() {
+        UUID id = UUID.randomUUID();
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "X", null,
+            new Price(new BigDecimal("5.00"), "EUR"), "Main", true);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+        when(currentUser.require()).thenReturn(
+            new AuthenticatedUser(OTHER_OWNER_ID, "RestaurantOwner", "USER", null));
+        when(restaurantOwnership.findOwnerId(RESTAURANT_ID)).thenReturn(Optional.of(OWNER_ID));
+
+        assertThatThrownBy(() -> service.delete(id))
+            .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test

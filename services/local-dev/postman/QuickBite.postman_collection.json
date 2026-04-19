@@ -41,13 +41,17 @@
           "    return signingInput + '.' + sig;",
           "};",
           "",
-          "const customerToken = mint('00000000-0000-0000-0000-0000000000c1', 'dev-customer', 'Customer');",
-          "const ownerToken    = mint('00000000-0000-0000-0000-000000000001', 'dev-owner',    'RestaurantOwner');",
-          "const adminToken    = mint('00000000-0000-0000-0000-0000000000a1', 'dev-admin',    'Admin');",
+          "const customerToken   = mint('00000000-0000-0000-0000-0000000000c1', 'dev-customer',    'Customer');",
+          "const ownerToken      = mint('00000000-0000-0000-0000-000000000001', 'dev-owner',       'RestaurantOwner');",
+          "// Owner 002 seeds Cafe Nero/Burger Bros -- used by Negative Auth tests",
+          "// to prove 'Owner A on restaurant B' returns 403 on d0000001 (owned by 001).",
+          "const otherOwnerToken = mint('00000000-0000-0000-0000-000000000002', 'dev-owner-other', 'RestaurantOwner');",
+          "const adminToken      = mint('00000000-0000-0000-0000-0000000000a1', 'dev-admin',       'Admin');",
           "",
-          "pm.environment.set('customerToken', customerToken);",
-          "pm.environment.set('ownerToken',    ownerToken);",
-          "pm.environment.set('adminToken',    adminToken);",
+          "pm.environment.set('customerToken',   customerToken);",
+          "pm.environment.set('ownerToken',      ownerToken);",
+          "pm.environment.set('otherOwnerToken', otherOwnerToken);",
+          "pm.environment.set('adminToken',      adminToken);",
           "// Back-compat alias for pre-Phase-7 requests.",
           "pm.environment.set('jwtToken', ownerToken);"
         ]
@@ -900,6 +904,188 @@
               "raw": "{{menuBaseUrl}}/restaurants/{{restaurantId}}/menu-items",
               "host": ["{{menuBaseUrl}}"],
               "path": ["restaurants", "{{restaurantId}}", "menu-items"]
+            }
+          }
+        },
+        {
+          "name": "[403] PATCH /restaurants/{id}/status  other owner (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('envelope error = Forbidden', () => {",
+                  "    pm.expect(pm.response.json().error).to.eql('Forbidden');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{otherOwnerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"isOpen\": true }"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/status",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "[403] PUT /restaurants/{id}  other owner (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{otherOwnerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pizza Antonio (stolen)\",\n  \"address\": \"Ruutli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"00:00-23:59\"\n}"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}"]
+            }
+          }
+        },
+        {
+          "name": "[403] PUT /menu-items/{id}  other owner (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{otherOwnerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Margherita (hijacked)\",\n  \"description\": \"Not yours to edit.\",\n  \"priceAmount\": \"1.00\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "[403] DELETE /menu-items/{id}  other owner (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{otherOwnerToken}}" }],
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
+            }
+          }
+        },
+        {
+          "name": "[200] PATCH /restaurants/{id}/status  admin bypass (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 (admin bypass)', () => pm.response.to.have.status(200));",
+                  "pm.test('restaurantId echoes path', () => {",
+                  "    pm.expect(pm.response.json().restaurantId).to.eql(pm.environment.get('restaurantId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"isOpen\": true }"
+            },
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/status",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "[200] PUT /menu-items/{id}  admin bypass (Phase 15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 (admin bypass)', () => pm.response.to.have.status(200));",
+                  "pm.test('name is echoed', () => {",
+                  "    pm.expect(pm.response.json().name).to.eql('Margherita');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Margherita\",\n  \"description\": \"Tomato, mozzarella, basil.\",\n  \"priceAmount\": \"8.50\",\n  \"priceCurrency\": \"EUR\",\n  \"category\": \"Main\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/{{menuItemId}}",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "{{menuItemId}}"]
             }
           }
         }

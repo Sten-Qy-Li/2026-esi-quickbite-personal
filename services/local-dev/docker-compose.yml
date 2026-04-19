@@ -74,6 +74,8 @@ services:
     depends_on:
       menu-db:
         condition: service_healthy
+      restaurant-service:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: "8082"
@@ -82,6 +84,7 @@ services:
       DB_PASSWORD: ${MENU_DB_PASSWORD:-menu_pw}
       JWT_SECRET: ${JWT_SECRET:-dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=}
       JWT_ISSUER: ${JWT_ISSUER:-quickbite-user-service}
+      RESTAURANT_SERVICE_BASE_URL: ${RESTAURANT_SERVICE_BASE_URL:-http://restaurant-service:8081}
     ports:
       - "8082:8082"
     networks:

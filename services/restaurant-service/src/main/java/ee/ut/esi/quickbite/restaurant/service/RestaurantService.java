@@ -9,8 +9,13 @@ import ee.ut.esi.quickbite.restaurant.dto.UpdateRestaurantRequest;
 import ee.ut.esi.quickbite.restaurant.exception.DuplicateRestaurantException;
 import ee.ut.esi.quickbite.restaurant.exception.RestaurantNotFoundException;
 import ee.ut.esi.quickbite.restaurant.repository.RestaurantRepository;
+import ee.ut.esi.quickbite.restaurant.security.AuthenticatedUser;
 import ee.ut.esi.quickbite.restaurant.security.CurrentUser;
+import ee.ut.esi.quickbite.restaurant.security.SecurityRoles;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +29,7 @@ import java.util.UUID;
 @Service
 public class RestaurantService {
 
+    private static final Logger log = LoggerFactory.getLogger(RestaurantService.class);
     private static final ZoneId OPERATING_HOURS_ZONE = ZoneId.of("Europe/Tallinn");
 
     private final RestaurantRepository restaurants;
@@ -69,6 +75,7 @@ public class RestaurantService {
     @Transactional
     public RestaurantResponse update(UUID id, UpdateRestaurantRequest req) {
         Restaurant r = requireRestaurant(id);
+        requireOwnerOrAdmin(r, "PUT /restaurants/" + id);
         Location location = new Location(req.address(), req.city(), req.latitude(), req.longitude());
         r.updateDetails(req.name(), location, req.operatingHours());
         return RestaurantResponse.from(r);
@@ -77,8 +84,23 @@ public class RestaurantService {
     @Transactional
     public RestaurantResponse setStatus(UUID id, boolean isOpen) {
         Restaurant r = requireRestaurant(id);
+        requireOwnerOrAdmin(r, "PATCH /restaurants/" + id + "/status");
         r.setStatus(isOpen);
         return RestaurantResponse.from(r);
+    }
+
+    private void requireOwnerOrAdmin(Restaurant r, String endpoint) {
+        AuthenticatedUser actor = currentUser.require();
+        if (SecurityRoles.ADMIN.equals(actor.role())) {
+            return;
+        }
+        if (actor.userId().equals(r.getOwnerId())) {
+            return;
+        }
+        log.warn("ownership denial actor={} role={} endpoint={} restaurantId={} ownerId={}",
+            actor.userId(), actor.role(), endpoint, r.getRestaurantId(), r.getOwnerId());
+        throw new AccessDeniedException(
+            "User " + actor.userId() + " does not own restaurant " + r.getRestaurantId());
     }
 
     @Transactional(readOnly = true)

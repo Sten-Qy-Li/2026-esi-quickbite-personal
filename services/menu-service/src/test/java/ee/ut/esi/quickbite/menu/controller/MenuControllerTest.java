@@ -6,6 +6,7 @@ import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
 import ee.ut.esi.quickbite.menu.security.JwtDevMint;
 import ee.ut.esi.quickbite.menu.security.JwtProperties;
+import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
 import ee.ut.esi.quickbite.menu.service.MenuService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,6 +53,9 @@ class MenuControllerTest {
 
     @MockBean
     private MenuService service;
+
+    @MockBean
+    private RestaurantOwnershipClient restaurantOwnership;
 
     private String customerToken;
     private String ownerToken;
@@ -213,6 +219,37 @@ class MenuControllerTest {
         mvc.perform(delete("/menu-items/{id}", MENU_ITEM_ID)
                 .header("Authorization", "Bearer " + ownerToken))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteMenuItem_foreignOwnerForbidden() throws Exception {
+        doThrow(new AccessDeniedException("User does not own restaurant"))
+            .when(service).delete(MENU_ITEM_ID);
+        mvc.perform(delete("/menu-items/{id}", MENU_ITEM_ID)
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
+    void putMenuItem_foreignOwnerForbidden() throws Exception {
+        doThrow(new AccessDeniedException("User does not own restaurant"))
+            .when(service).update(eq(MENU_ITEM_ID), any());
+        mvc.perform(put("/menu-items/{id}", MENU_ITEM_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(validCreateBody()))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void putMenuItem_adminBypassesOwnership() throws Exception {
+        when(service.update(eq(MENU_ITEM_ID), any())).thenReturn(sampleResponse());
+        mvc.perform(put("/menu-items/{id}", MENU_ITEM_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + adminToken)
+                .content(validCreateBody()))
+            .andExpect(status().isOk());
     }
 
     @Test

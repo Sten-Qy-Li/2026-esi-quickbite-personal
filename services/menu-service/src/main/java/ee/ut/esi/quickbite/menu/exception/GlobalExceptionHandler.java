@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -24,9 +25,27 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), req, null);
     }
 
+    @ExceptionHandler(RestaurantNotFoundForMenuException.class)
+    public ResponseEntity<ErrorResponse> handleRestaurantNotFound(RestaurantNotFoundForMenuException ex, HttpServletRequest req) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), req, null);
+    }
+
+    @ExceptionHandler(OwningRestaurantLookupException.class)
+    public ResponseEntity<ErrorResponse> handleLookupFailure(OwningRestaurantLookupException ex, HttpServletRequest req) {
+        log.warn("ownership lookup failure on {} {}: {}", req.getMethod(), req.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, "Upstream restaurant lookup failed", req, null);
+    }
+
     @ExceptionHandler(InvalidPriceException.class)
     public ResponseEntity<ErrorResponse> handleInvalidPrice(InvalidPriceException ex, HttpServletRequest req) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        log.warn("security denial 403 method={} path={} reason={}",
+            req.getMethod(), req.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.FORBIDDEN, "Access denied", req, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -3,6 +3,7 @@ package ee.ut.esi.quickbite.menu.controller;
 import ee.ut.esi.quickbite.menu.dto.MenuItemResponse;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
+import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
 import ee.ut.esi.quickbite.menu.security.JwtDevMint;
 import ee.ut.esi.quickbite.menu.security.JwtProperties;
 import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
@@ -134,6 +135,20 @@ class MenuControllerTest {
                 .header("Authorization", "Bearer " + adminToken)
                 .content(validCreateBody()))
             .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createMenuItem_adminUnknownRestaurantReturns404() throws Exception {
+        UUID unknownRestaurantId = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        when(service.create(eq(unknownRestaurantId), any()))
+            .thenThrow(new RestaurantNotFoundForMenuException(unknownRestaurantId));
+        mvc.perform(post("/restaurants/{rid}/menu-items", unknownRestaurantId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + adminToken)
+                .content(validCreateBody()))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.status").value(404))
+            .andExpect(jsonPath("$.error").value("Not Found"));
     }
 
     @Test

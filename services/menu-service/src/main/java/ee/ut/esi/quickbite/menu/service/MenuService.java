@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -74,7 +73,10 @@ public class MenuService {
 
     @Transactional
     public MenuItemResponse create(UUID restaurantId, CreateMenuItemRequest req) {
-        requireOwnerOrAdmin(restaurantId, "POST /restaurants/" + restaurantId + "/menu-items");
+        UUID ownerId = restaurantOwnership.findOwnerId(restaurantId)
+            .orElseThrow(() -> new RestaurantNotFoundForMenuException(restaurantId));
+        requireOwnerOrAdmin(restaurantId, ownerId,
+            "POST /restaurants/" + restaurantId + "/menu-items");
         validatePrice(req.priceAmount());
         warnIfUnknownCategory(req.category());
         boolean available = req.isAvailable() == null ? true : req.isAvailable();
@@ -141,15 +143,25 @@ public class MenuService {
         if (SecurityRoles.ADMIN.equals(actor.role())) {
             return;
         }
-        Optional<UUID> ownerId = restaurantOwnership.findOwnerId(restaurantId);
-        if (ownerId.isEmpty()) {
-            throw new RestaurantNotFoundForMenuException(restaurantId);
+        UUID ownerId = restaurantOwnership.findOwnerId(restaurantId)
+            .orElseThrow(() -> new RestaurantNotFoundForMenuException(restaurantId));
+        denyIfNotOwner(actor, restaurantId, ownerId, endpoint);
+    }
+
+    private void requireOwnerOrAdmin(UUID restaurantId, UUID knownOwnerId, String endpoint) {
+        AuthenticatedUser actor = currentUser.require();
+        if (SecurityRoles.ADMIN.equals(actor.role())) {
+            return;
         }
-        if (ownerId.get().equals(actor.userId())) {
+        denyIfNotOwner(actor, restaurantId, knownOwnerId, endpoint);
+    }
+
+    private void denyIfNotOwner(AuthenticatedUser actor, UUID restaurantId, UUID ownerId, String endpoint) {
+        if (ownerId.equals(actor.userId())) {
             return;
         }
         log.warn("ownership denial actor={} role={} endpoint={} restaurantId={} ownerId={}",
-            actor.userId(), actor.role(), endpoint, restaurantId, ownerId.get());
+            actor.userId(), actor.role(), endpoint, restaurantId, ownerId);
         throw new AccessDeniedException(
             "User " + actor.userId() + " does not own restaurant " + restaurantId);
     }

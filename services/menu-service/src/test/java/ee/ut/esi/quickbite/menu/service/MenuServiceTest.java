@@ -293,6 +293,19 @@ class MenuServiceTest {
     }
 
     @Test
+    void create_failsWhenAdminTargetsMissingRestaurant() {
+        lenient().when(currentUser.require()).thenReturn(
+            new AuthenticatedUser(ADMIN_ID, "Admin", "USER", null));
+        when(restaurantOwnership.findOwnerId(RESTAURANT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(RESTAURANT_ID, new CreateMenuItemRequest(
+            "Orphan", null, new BigDecimal("5.00"), "EUR", "Main", true
+        ))).isInstanceOf(RestaurantNotFoundForMenuException.class);
+
+        verify(menuItems, never()).save(any(MenuItem.class));
+    }
+
+    @Test
     void delete_deniedWhenCallerIsNotOwnerOrAdmin() {
         UUID id = UUID.randomUUID();
         MenuItem existing = new MenuItem(RESTAURANT_ID, "X", null,

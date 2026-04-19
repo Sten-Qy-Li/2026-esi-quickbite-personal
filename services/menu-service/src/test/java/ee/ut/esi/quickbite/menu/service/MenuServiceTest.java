@@ -7,6 +7,8 @@ import ee.ut.esi.quickbite.menu.dto.MenuItemResponse;
 import ee.ut.esi.quickbite.menu.dto.UpdateMenuItemRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
+import ee.ut.esi.quickbite.menu.events.AvailabilityChangedEvent;
+import ee.ut.esi.quickbite.menu.events.MenuEventPublisher;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
 import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
@@ -17,11 +19,15 @@ import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +36,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +55,8 @@ class MenuServiceTest {
     private static final UUID ADMIN_ID =
         UUID.fromString("00000000-0000-0000-0000-0000000000a1");
 
+    private static final Instant FIXED_NOW = Instant.parse("2026-04-19T12:00:00Z");
+
     @Mock
     private MenuItemRepository menuItems;
 
@@ -54,11 +66,16 @@ class MenuServiceTest {
     @Mock
     private RestaurantOwnershipClient restaurantOwnership;
 
+    @Mock
+    private MenuEventPublisher menuEventPublisher;
+
     private MenuService service;
 
     @BeforeEach
     void setUp() {
-        service = new MenuService(menuItems, currentUser, restaurantOwnership);
+        Clock fixedClock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
+        service = new MenuService(menuItems, currentUser, restaurantOwnership,
+            menuEventPublisher, fixedClock);
         lenient().when(currentUser.require()).thenReturn(
             new AuthenticatedUser(OWNER_ID, "RestaurantOwner", "USER", null));
         lenient().when(restaurantOwnership.findOwnerId(RESTAURANT_ID))
@@ -119,12 +136,107 @@ class MenuServiceTest {
         when(menuItems.findById(id)).thenReturn(Optional.of(existing));
 
         MenuItemResponse updated = service.update(id, new UpdateMenuItemRequest(
-            "New Name", "New desc", new BigDecimal("9.90"), "EUR", "Main", false
+            "New Name", "New desc", new BigDecimal("9.90"), "EUR", "Main", true
         ));
 
         assertThat(updated.name()).isEqualTo("New Name");
         assertThat(updated.priceAmount()).isEqualByComparingTo("9.90");
-        assertThat(updated.isAvailable()).isFalse();
+        assertThat(updated.isAvailable()).isTrue();
+        verifyNoInteractions(menuEventPublisher);
+    }
+
+    @Test
+    void update_publishesAvailabilityChangedOnTrueToFalse() {
+        UUID id = UUID.fromString("e0000011-0000-0000-0000-000000000011");
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "Margherita",
+            "desc", new Price(new BigDecimal("8.50"), "EUR"), "Main", true);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+
+        service.update(id, new UpdateMenuItemRequest(
+            "Margherita", "desc", new BigDecimal("8.50"), "EUR", "Main", false
+        ));
+
+        ArgumentCaptor<AvailabilityChangedEvent> captor =
+            ArgumentCaptor.forClass(AvailabilityChangedEvent.class);
+        verify(menuEventPublisher).publishAvailabilityChanged(captor.capture());
+        AvailabilityChangedEvent event = captor.getValue();
+        assertThat(event.menuItemId()).isEqualTo(existing.getMenuItemId());
+        assertThat(event.restaurantId()).isEqualTo(RESTAURANT_ID);
+        assertThat(event.isAvailable()).isFalse();
+        assertThat(event.previousIsAvailable()).isTrue();
+        assertThat(event.occurredAt()).isEqualTo(FIXED_NOW);
+    }
+
+    @Test
+    void update_publishesAvailabilityChangedOnFalseToTrue() {
+        UUID id = UUID.randomUUID();
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "Soup of the day",
+            "desc", new Price(new BigDecimal("4.00"), "EUR"), "Main", false);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+
+        service.update(id, new UpdateMenuItemRequest(
+            "Soup of the day", "desc", new BigDecimal("4.00"), "EUR", "Main", true
+        ));
+
+        ArgumentCaptor<AvailabilityChangedEvent> captor =
+            ArgumentCaptor.forClass(AvailabilityChangedEvent.class);
+        verify(menuEventPublisher).publishAvailabilityChanged(captor.capture());
+        AvailabilityChangedEvent event = captor.getValue();
+        assertThat(event.isAvailable()).isTrue();
+        assertThat(event.previousIsAvailable()).isFalse();
+    }
+
+    @Test
+    void update_doesNotPublishWhenOnlyNonAvailabilityFieldsChange() {
+        UUID id = UUID.randomUUID();
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "Fries",
+            "desc", new Price(new BigDecimal("3.00"), "EUR"), "Main", true);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+
+        service.update(id, new UpdateMenuItemRequest(
+            "Curly Fries", "crunchier", new BigDecimal("3.50"), "EUR", "Main", true
+        ));
+
+        verifyNoInteractions(menuEventPublisher);
+    }
+
+    @Test
+    void update_publisherFailureDoesNotFailRequest() {
+        UUID id = UUID.randomUUID();
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "Sold out",
+            "desc", new Price(new BigDecimal("6.00"), "EUR"), "Main", false);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+        doThrow(new RuntimeException("broker unreachable"))
+            .when(menuEventPublisher).publishAvailabilityChanged(any());
+
+        MenuItemResponse response = service.update(id, new UpdateMenuItemRequest(
+            "Back in stock", "desc", new BigDecimal("6.00"), "EUR", "Main", true
+        ));
+
+        assertThat(response.isAvailable()).isTrue();
+        verify(menuEventPublisher).publishAvailabilityChanged(any());
+    }
+
+    @Test
+    void create_doesNotPublishAvailabilityEvent() {
+        when(menuItems.save(any(MenuItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.create(RESTAURANT_ID, new CreateMenuItemRequest(
+            "Margherita", "Classic", new BigDecimal("8.50"), "EUR", "Main", true));
+
+        verify(menuEventPublisher, never()).publishAvailabilityChanged(any());
+    }
+
+    @Test
+    void delete_doesNotPublishAvailabilityEvent() {
+        UUID id = UUID.randomUUID();
+        MenuItem existing = new MenuItem(RESTAURANT_ID, "X", null,
+            new Price(new BigDecimal("5.00"), "EUR"), "Main", true);
+        when(menuItems.findById(id)).thenReturn(Optional.of(existing));
+
+        service.delete(id);
+
+        verify(menuEventPublisher, never()).publishAvailabilityChanged(any());
     }
 
     @Test

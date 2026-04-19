@@ -7,6 +7,8 @@ import ee.ut.esi.quickbite.menu.dto.MenuItemResponse;
 import ee.ut.esi.quickbite.menu.dto.UpdateMenuItemRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsRequest;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
+import ee.ut.esi.quickbite.menu.events.AvailabilityChangedEvent;
+import ee.ut.esi.quickbite.menu.events.MenuEventPublisher;
 import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
 import ee.ut.esi.quickbite.menu.exception.RestaurantNotFoundForMenuException;
@@ -17,11 +19,14 @@ import ee.ut.esi.quickbite.menu.security.RestaurantOwnershipClient;
 import ee.ut.esi.quickbite.menu.security.SecurityRoles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +46,28 @@ public class MenuService {
     private final MenuItemRepository menuItems;
     private final CurrentUser currentUser;
     private final RestaurantOwnershipClient restaurantOwnership;
+    private final MenuEventPublisher menuEventPublisher;
+    private final Clock clock;
 
+    @Autowired
     public MenuService(MenuItemRepository menuItems,
                        CurrentUser currentUser,
-                       RestaurantOwnershipClient restaurantOwnership) {
+                       RestaurantOwnershipClient restaurantOwnership,
+                       MenuEventPublisher menuEventPublisher) {
+        this(menuItems, currentUser, restaurantOwnership, menuEventPublisher,
+            Clock.system(ZoneOffset.UTC));
+    }
+
+    MenuService(MenuItemRepository menuItems,
+                CurrentUser currentUser,
+                RestaurantOwnershipClient restaurantOwnership,
+                MenuEventPublisher menuEventPublisher,
+                Clock clock) {
         this.menuItems = menuItems;
         this.currentUser = currentUser;
         this.restaurantOwnership = restaurantOwnership;
+        this.menuEventPublisher = menuEventPublisher;
+        this.clock = clock;
     }
 
     @Transactional
@@ -81,9 +101,30 @@ public class MenuService {
         requireOwnerOrAdmin(m.getRestaurantId(), "PUT /menu-items/" + id);
         validatePrice(req.priceAmount());
         warnIfUnknownCategory(req.category());
+        boolean previousAvailability = m.isAvailable();
         Price price = new Price(req.priceAmount(), req.priceCurrency());
         m.updateDetails(req.name(), req.description(), price, req.category(), req.isAvailable());
+        if (previousAvailability != m.isAvailable()) {
+            publishAvailabilityChanged(m, previousAvailability);
+        }
         return MenuItemResponse.from(m);
+    }
+
+    private void publishAvailabilityChanged(MenuItem item, boolean previousAvailability) {
+        log.info("availability transition menuItemId={} restaurantId={} {} -> {}",
+            item.getMenuItemId(), item.getRestaurantId(),
+            previousAvailability, item.isAvailable());
+        AvailabilityChangedEvent event = new AvailabilityChangedEvent(
+            item.getMenuItemId(), item.getRestaurantId(),
+            item.isAvailable(), previousAvailability,
+            clock.instant()
+        );
+        try {
+            menuEventPublisher.publishAvailabilityChanged(event);
+        } catch (RuntimeException ex) {
+            log.warn("menu event publish failed menuItemId={} error={}",
+                item.getMenuItemId(), ex.getMessage());
+        }
     }
 
     @Transactional

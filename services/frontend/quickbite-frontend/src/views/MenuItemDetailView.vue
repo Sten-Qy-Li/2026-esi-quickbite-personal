@@ -52,7 +52,7 @@
                 v-model.number="form.priceAmount"
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 required
               />
               <p v-if="fieldErrors.priceAmount" class="field-error">{{ fieldErrors.priceAmount }}</p>
@@ -174,8 +174,8 @@ export default {
       if (!this.form.name) errors.name = 'Name is required.';
       if (this.form.priceAmount === null || this.form.priceAmount === '') {
         errors.priceAmount = 'Price is required.';
-      } else if (Number(this.form.priceAmount) < 0) {
-        errors.priceAmount = 'Price must be zero or more.';
+      } else if (Number(this.form.priceAmount) <= 0) {
+        errors.priceAmount = 'Price must be greater than 0.';
       }
       if (!/^[A-Z]{3}$/.test(this.form.priceCurrency || '')) {
         errors.priceCurrency = 'Use a 3-letter ISO code (e.g. EUR).';

@@ -143,6 +143,20 @@
         },
         {
           "name": "Future: POST /api/auth/login (owned by User Service / Alfa-Kilo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The dev-gateway stub returns 501 until Alfa-Kilo's User Service ships.",
+                  "// Assert that explicitly so a surprise 200/4xx is surfaced, not hidden.",
+                  "pm.test('dev-gateway stub returns 501 until User Service ships',",
+                  "    () => pm.response.to.have.status(501));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -164,6 +178,21 @@
       "item": [
         {
           "name": "POST /restaurants",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body && body.restaurantId) {",
+                  "    pm.environment.set('restaurantId', body.restaurantId);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -172,7 +201,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Pizza Antonio\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"11:00-22:00\"\n}"
+              "raw": "{\n  \"name\": \"Pizza Antonio {{$timestamp}}\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"11:00-22:00\"\n}"
             },
             "url": {
               "raw": "{{restaurantBaseUrl}}/restaurants",

@@ -103,7 +103,6 @@ function Invoke-SmokeRequest {
         Uri                = $Url
         Headers            = $headers
         SkipHttpErrorCheck = $true
-        StatusCodeVariable = 'status'
         ErrorAction        = 'SilentlyContinue'
     }
     if ($Body) {
@@ -119,6 +118,7 @@ function Invoke-SmokeRequest {
     if ($null -eq $response) {
         return @{ ok = $false; status = 0; body = '<no response>' }
     }
+    $status = [int]$response.StatusCode
     $ok = ($status -eq $ExpectedStatus)
     $parsed = $null
     if ($response.Content -and -not [string]::IsNullOrWhiteSpace($response.Content)) {

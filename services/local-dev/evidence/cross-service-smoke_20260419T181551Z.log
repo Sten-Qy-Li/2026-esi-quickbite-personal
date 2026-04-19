@@ -1,0 +1,30 @@
+2026-04-19T18:15:51Z == Phase 16 cross-service smoke (PowerShell) ==
+2026-04-19T18:15:51Z Restaurant        : http://localhost:8081
+2026-04-19T18:15:51Z Menu              : http://localhost:8082
+2026-04-19T18:15:51Z Gateway (probe)   : http://localhost:8080
+2026-04-19T18:15:51Z User (probe)      : <unset>
+2026-04-19T18:15:51Z Order (probe)     : <unset>
+2026-04-19T18:15:51Z Payment (probe)   : <unset>
+2026-04-19T18:15:51Z Delivery (probe)  : <unset>
+2026-04-19T18:15:51Z Notification      : <unset>
+2026-04-19T18:15:51Z Docker available  : yes
+2026-04-19T18:15:51Z Trace file        : C:\MSc-Computer-Science\Semester-2\esi\2026-esi-quickbite-personal\services\local-dev\evidence\cross-service-smoke_20260419T181551Z.log
+2026-04-19T18:15:51Z 
+2026-04-19T18:15:51Z [STEP 1] Mint dev tokens (owner + customer)
+2026-04-19T18:15:51Z 
+2026-04-19T18:15:51Z [STEP 2] Sierra-Lima W1 hops
+2026-04-19T18:15:51Z 
+2026-04-19T18:15:51Z [STEP 3] Toggle availability to exercise the menu-events publisher
+2026-04-19T18:15:51Z 
+2026-04-19T18:15:51Z [STEP 4] Teammate service probes (optional)
+2026-04-19T18:15:51Z gateway: reachable
+2026-04-19T18:15:52Z User Service: unset
+2026-04-19T18:15:52Z Order Service: unset
+2026-04-19T18:15:52Z Payment Service: unset
+2026-04-19T18:15:52Z Delivery Service: unset
+2026-04-19T18:15:52Z Notification Service: unset
+2026-04-19T18:15:52Z 
+2026-04-19T18:15:52Z [SUMMARY]
+2026-04-19T18:15:52Z sierra-lima failures = 1
+2026-04-19T18:15:52Z teammate failures    = 0
+2026-04-19T18:15:52Z trace file           = C:\MSc-Computer-Science\Semester-2\esi\2026-esi-quickbite-personal\services\local-dev\evidence\cross-service-smoke_20260419T181551Z.log

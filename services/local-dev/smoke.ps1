@@ -65,17 +65,17 @@ function Invoke-JsonRequest {
     $headers = @{}
     if ($Token) { $headers['Authorization'] = "Bearer $Token" }
     $splat = @{
-        Method                = $Method
-        Uri                   = $Url
-        Headers               = $headers
-        SkipHttpErrorCheck    = $true
-        StatusCodeVariable    = 'status'
+        Method             = $Method
+        Uri                = $Url
+        Headers            = $headers
+        SkipHttpErrorCheck = $true
     }
     if ($Body) {
         $splat.Body        = ($Body | ConvertTo-Json -Depth 6 -Compress)
         $splat.ContentType = 'application/json'
     }
     $response = Invoke-WebRequest @splat
+    $status = [int]$response.StatusCode
     if ($status -ne $ExpectedStatus) {
         Write-Fail "$Method $Url expected HTTP $ExpectedStatus, got $status. Body: $($response.Content)"
     }

@@ -15,7 +15,8 @@
       <input id="address" v-model.trim="form.address" maxlength="255" />
 
       <label for="city">City</label>
-      <input id="city" v-model.trim="form.city" maxlength="120" />
+      <input id="city" v-model.trim="form.city" maxlength="120" required />
+      <p v-if="fieldErrors.city" class="field-error">{{ fieldErrors.city }}</p>
 
       <div class="row">
         <div>
@@ -93,6 +94,7 @@ export default {
     validate() {
       const errors = {};
       if (!this.form.name) errors.name = 'Name is required.';
+      if (!this.form.city) errors.city = 'City is required.';
       if (this.form.latitude === null || this.form.latitude === '') {
         errors.latitude = 'Latitude is required.';
       } else if (this.form.latitude < -90 || this.form.latitude > 90) {

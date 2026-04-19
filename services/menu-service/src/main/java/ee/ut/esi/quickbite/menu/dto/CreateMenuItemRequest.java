@@ -1,8 +1,10 @@
 package ee.ut.esi.quickbite.menu.dto;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -17,6 +19,9 @@ public record CreateMenuItemRequest(
     String description,
 
     @NotNull(message = "priceAmount is required")
+    @Positive(message = "priceAmount must be greater than 0")
+    @Digits(integer = 17, fraction = 2,
+            message = "priceAmount must have at most 2 decimal places")
     BigDecimal priceAmount,
 
     @NotBlank(message = "priceCurrency is required")

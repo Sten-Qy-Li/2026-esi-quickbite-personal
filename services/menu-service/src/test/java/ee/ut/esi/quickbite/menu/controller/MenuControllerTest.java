@@ -2,7 +2,6 @@ package ee.ut.esi.quickbite.menu.controller;
 
 import ee.ut.esi.quickbite.menu.dto.MenuItemResponse;
 import ee.ut.esi.quickbite.menu.dto.ValidateMenuItemsResponse;
-import ee.ut.esi.quickbite.menu.exception.InvalidPriceException;
 import ee.ut.esi.quickbite.menu.exception.MenuItemNotFoundException;
 import ee.ut.esi.quickbite.menu.security.JwtDevMint;
 import ee.ut.esi.quickbite.menu.security.JwtProperties;
@@ -137,9 +136,7 @@ class MenuControllerTest {
     }
 
     @Test
-    void createMenuItem_invalidPriceReturns422() throws Exception {
-        when(service.create(eq(RESTAURANT_ID), any()))
-            .thenThrow(new InvalidPriceException(BigDecimal.ZERO, "must be greater than 0"));
+    void createMenuItem_zeroPriceReturns400() throws Exception {
         String zeroPriceBody = """
             { "name": "Free lunch",
               "priceAmount": 0,
@@ -150,8 +147,9 @@ class MenuControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + ownerToken)
                 .content(zeroPriceBody))
-            .andExpect(status().isUnprocessableEntity())
-            .andExpect(jsonPath("$.status").value(422));
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.validationErrors[?(@.field == 'priceAmount')]").exists());
     }
 
     @Test

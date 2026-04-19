@@ -72,7 +72,9 @@ Copied from master plan Appendix F.1.
 
 **Request:** same shape as §1.1 request (all fields replaced).
 
-**Response (`204 No Content`):** empty body.
+**Response (`200 OK`):** same body as §1.1 response (the updated
+resource). Returning the body avoids a second round-trip by the
+frontend's edit view and keeps PUT and POST symmetric.
 
 ### 1.4 `PATCH /restaurants/{id}/status`
 
@@ -82,7 +84,9 @@ Copied from master plan Appendix F.1.
 { "isOpen": true }
 ```
 
-**Response (`204 No Content`):** empty body.
+**Response (`200 OK`):** same body as §1.1 response (the updated
+resource with the new `isOpen` value). Returning the body lets the
+owner dashboard refresh its badge without a follow-up `GET`.
 
 ### 1.5 `GET /restaurants`
 
@@ -207,7 +211,9 @@ optional).
 
 **Request:** same shape as §2.1 request.
 
-**Response (`204 No Content`):** empty body.
+**Response (`200 OK`):** same body as §2.1 response (the updated menu
+item). Returning the body lets the menu-item detail view refresh the
+price/availability badges in place.
 
 ### 2.5 `DELETE /menu-items/{id}`
 
@@ -278,10 +284,15 @@ Notes:
 
 - `name`: `@NotBlank`, `@Size(max=255)`.
 - `description`: `@Size(max=2000)` (nullable).
-- `priceAmount`: `@NotNull`, `@Positive`, scale 2 (`BigDecimal`).
+- `priceAmount`: `@NotNull`, `@Positive`, `@Digits(integer=17,fraction=2)`
+  (`BigDecimal`). The `integer=17` cap mirrors the `NUMERIC(19,2)`
+  column in §4.2.
 - `priceCurrency`: `@NotBlank`, `@Pattern("^[A-Z]{3}$")` (ISO-4217).
 - `category`: `@NotBlank`, `@Size(max=100)`.
-- `isAvailable`: `@NotNull`.
+- `isAvailable`: optional on `POST` -- when omitted the service defaults
+  it to `true` (the common case for a newly listed item). `@NotNull` on
+  `PUT` -- an update is expected to be explicit about the flag so the
+  menu-events availability transition is unambiguous.
 
 **`POST /menu-items/validate` request:**
 
@@ -328,7 +339,7 @@ CREATE TABLE menu_item (
     name              VARCHAR(255)    NOT NULL,
     description       VARCHAR(2000),
     price_amount      NUMERIC(19,2)   NOT NULL CHECK (price_amount > 0),
-    price_currency    CHAR(3)         NOT NULL DEFAULT 'EUR',
+    price_currency    VARCHAR(3)      NOT NULL DEFAULT 'EUR',
     category          VARCHAR(100)    NOT NULL,
     is_available      BOOLEAN         NOT NULL DEFAULT TRUE,
     created_at        TIMESTAMP       NOT NULL,

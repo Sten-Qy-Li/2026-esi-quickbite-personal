@@ -16,6 +16,7 @@ public record UpdateRestaurantRequest(
     @Size(max = 255, message = "address must be at most 255 characters")
     String address,
 
+    @NotBlank(message = "city is required")
     @Size(max = 120, message = "city must be at most 120 characters")
     String city,
 

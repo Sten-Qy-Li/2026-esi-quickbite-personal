@@ -163,3 +163,26 @@ curl -sfo /dev/null http://localhost:8080 && echo frontend-up
 # npm i -g newman
 # newman run dev-docs/contracts/postman/QuickBite-Sierra-Lima.postman_collection.json -e <env>.json
 ```
+
+---
+
+## Errata (added 2026-04-19 at `d23145f`)
+
+§1.2 row 5 (line 34 of this file) was a documentation error. No
+`DELETE /restaurants/{id}` endpoint exists or was ever planned:
+
+- Contract `0020 §1.5` is `GET /restaurants` (paged list), not a DELETE.
+- Route matrix `0010 §8` reserves no rule for `DELETE /restaurants/{id}`.
+- `RestaurantController` has no `delete` method (verified by grep at `d23145f`).
+- No test -- unit, integration, or Postman -- exercises such a route.
+
+The row should be disregarded. All other rows of §1.2 stand and were
+re-verified by `audit-d23145f_Charlie-Lima-Alfa_integration-handover-readiness.md`
+§Q1.2, which also records this correction (§Q3.1, finding F5).
+
+Correct endpoint count for Sierra-Lima's slice is **12** (per the `d23145f`
+audit), not 11 as stated in §1.2 of this file; the delta is the `DELETE`
+row dropping out, plus the previously-merged `GET /restaurants` and
+`GET /restaurants/{id}` rows being split to match the contract's separate
+clauses `0020 §1.2` and `0020 §1.5`, and the same split applied on the
+menu side for `0020 §2.2`/`§2.3` vs. `§2.4`/`§2.5`.

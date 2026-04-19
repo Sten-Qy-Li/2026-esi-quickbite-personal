@@ -361,8 +361,317 @@
     },
     {
       "name": "W1 Integration",
-      "item": [],
-      "description": "Populated in Phase 10 when Order Service is wired up."
+      "description": "Phase 10 integration evidence. The two hops Order Service makes into Sierra-Lima (availability + batch validate) are exercised end-to-end against the locked contracts in 0030 and the status-code table in 0031. Each request has a test block pinning the expected status and body shape -- run the folder with Newman to produce failure-path evidence for CP#1.",
+      "item": [
+        {
+          "name": "[200 open] GET /restaurants/{open}/availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('restaurantId echoes path', () => pm.expect(body.restaurantId).to.eql(pm.environment.get('restaurantId')));",
+                  "pm.test('isOpen is true for Pizza Antonio seed', () => pm.expect(body.isOpen).to.eql(true));",
+                  "pm.test('acceptsOrders is boolean', () => pm.expect(body.acceptsOrders).to.be.a('boolean'));",
+                  "pm.test('operatingHours present', () => pm.expect(body.operatingHours).to.match(/^\\d{2}:\\d{2}-\\d{2}:\\d{2}$/));",
+                  "pm.test('checkedAt is ISO-8601', () => pm.expect(new Date(body.checkedAt).toString()).to.not.eql('Invalid Date'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "[200 closed] GET /restaurants/{closed}/availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('isOpen is false for Cafe Nero seed', () => pm.expect(body.isOpen).to.eql(false));",
+                  "pm.test('acceptsOrders is false when isOpen is false', () => pm.expect(body.acceptsOrders).to.eql(false));",
+                  "pm.test('operatingHours still reported', () => pm.expect(body.operatingHours).to.match(/^\\d{2}:\\d{2}-\\d{2}:\\d{2}$/));",
+                  "pm.test('checkedAt present', () => pm.expect(body.checkedAt).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantClosedId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantClosedId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "[404 unknown] GET /restaurants/{missing}/availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test('envelope error is Not Found', () => pm.expect(body.error).to.eql('Not Found'));",
+                  "pm.test('path is availability endpoint', () => pm.expect(body.path).to.include('/availability'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantUnknownId}}/availability",
+              "host": ["{{restaurantBaseUrl}}"],
+              "path": ["restaurants", "{{restaurantUnknownId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "[200 all valid] POST /menu-items/validate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('allValid is true', () => pm.expect(body.allValid).to.eql(true));",
+                  "pm.test('items length matches request', () => pm.expect(body.items).to.have.lengthOf(2));",
+                  "pm.test('every line exists + isAvailable', () => {",
+                  "    body.items.forEach(line => {",
+                  "        pm.expect(line.exists).to.eql(true);",
+                  "        pm.expect(line.isAvailable).to.eql(true);",
+                  "        pm.expect(Number(line.lineTotal)).to.be.a('number');",
+                  "    });",
+                  "});",
+                  "pm.test('totalAmount matches 2x10.50 + 1x5.00 = 26.00', () => pm.expect(Number(body.totalAmount)).to.eql(26));",
+                  "pm.test('currency defaults to EUR', () => pm.expect(body.currency).to.eql('EUR'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemAvailable2Id}}\", \"quantity\": 2 },\n    { \"menuItemId\": \"{{menuItemAvailable3Id}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[200 missing] POST /menu-items/validate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('allValid is false', () => pm.expect(body.allValid).to.eql(false));",
+                  "pm.test('items length matches request', () => pm.expect(body.items).to.have.lengthOf(2));",
+                  "const byId = Object.fromEntries(body.items.map(l => [l.menuItemId, l]));",
+                  "pm.test('existing line is valid', () => {",
+                  "    const line = byId[pm.environment.get('menuItemAvailable3Id')];",
+                  "    pm.expect(line.exists).to.eql(true);",
+                  "    pm.expect(line.isAvailable).to.eql(true);",
+                  "});",
+                  "pm.test('missing line flagged MENU_ITEM_NOT_FOUND', () => {",
+                  "    const line = byId[pm.environment.get('menuItemUnknownId')];",
+                  "    pm.expect(line.exists).to.eql(false);",
+                  "    pm.expect(line.error).to.eql('MENU_ITEM_NOT_FOUND');",
+                  "});",
+                  "pm.test('totalAmount sums only valid lines (2x5.00 = 10.00)', () => pm.expect(Number(body.totalAmount)).to.eql(10));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemAvailable3Id}}\", \"quantity\": 2 },\n    { \"menuItemId\": \"{{menuItemUnknownId}}\",     \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[200 unavailable] POST /menu-items/validate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('allValid is false', () => pm.expect(body.allValid).to.eql(false));",
+                  "pm.test('items length matches request', () => pm.expect(body.items).to.have.lengthOf(1));",
+                  "const line = body.items[0];",
+                  "pm.test('line exists but not available', () => {",
+                  "    pm.expect(line.exists).to.eql(true);",
+                  "    pm.expect(line.isAvailable).to.eql(false);",
+                  "});",
+                  "pm.test('error is MENU_ITEM_NOT_AVAILABLE', () => pm.expect(line.error).to.eql('MENU_ITEM_NOT_AVAILABLE'));",
+                  "pm.test('unitPriceAmount still reported (row exists)', () => pm.expect(Number(line.unitPriceAmount)).to.be.a('number'));",
+                  "pm.test('lineTotal omitted for invalid line', () => pm.expect(line).to.not.have.property('lineTotal'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemUnavailableId}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[400 quantity zero] POST /menu-items/validate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('envelope error is Bad Request', () => pm.expect(body.error).to.eql('Bad Request'));",
+                  "pm.test('validationErrors points at quantity', () => {",
+                  "    const fields = body.validationErrors.map(e => e.field);",
+                  "    pm.expect(fields.some(f => f.includes('quantity'))).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemAvailable3Id}}\", \"quantity\": 0 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[400 empty list] POST /menu-items/validate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('validationErrors present', () => {",
+                  "    pm.expect(pm.response.json().validationErrors).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"items\": [] }"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        },
+        {
+          "name": "[401] POST /menu-items/validate  no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('response is never a leaky 500', () => pm.expect(pm.response.code).to.not.eql(500));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"menuItemId\": \"{{menuItemAvailable3Id}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{menuBaseUrl}}/menu-items/validate",
+              "host": ["{{menuBaseUrl}}"],
+              "path": ["menu-items", "validate"]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "Async Evidence",

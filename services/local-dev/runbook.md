@@ -131,3 +131,47 @@ curl http://localhost:8082/actuator/health
 ```
 
 Both should return `{"status":"UP"}` plus Flyway/DB details.
+
+## 9. W1 integration smoke test (Phase 10)
+
+With the full stack healthy, run Sierra-Lima's W1 contract folder via
+Newman to exercise the two hops Alfa-Kilo's Order Service will make
+(`GET /restaurants/{id}/availability`, then
+`POST /menu-items/validate`). Each request carries the customer token
+minted by the collection-level pre-request script, mocking the token
+Order would relay per [`0033`](../../dev-docs/decisions/0033-inter-service-token-propagation-lock.md).
+
+```bash
+npx --yes newman run services/local-dev/postman/QuickBite.postman_collection.json \
+    -e services/local-dev/postman/QuickBite.postman_environment.json \
+    --folder "W1 Integration"
+```
+
+The 9 requests cover every failure-row Order Service has to handle --
+open / closed / unknown restaurant, all-valid / missing / unavailable
+batch, plus the envelope 400s (quantity 0, empty list) and a
+no-token 401. A green Newman run is the authoritative Phase 10 smoke
+evidence.
+
+Shorthand scripts for Alfa-Kilo (if Order Service is unavailable and
+we need to demonstrate the chain manually):
+
+```bash
+# hop 4: availability (open restaurant)
+curl -H "Authorization: Bearer $TOKEN" \
+     http://localhost:8081/restaurants/d0000001-0000-0000-0000-000000000001/availability
+
+# hop 5: batch validate
+curl -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -X POST \
+     -d '{"items":[{"menuItemId":"e0000012-0000-0000-0000-000000000012","quantity":2},
+                    {"menuItemId":"e0000013-0000-0000-0000-000000000013","quantity":1}]}' \
+     http://localhost:8082/menu-items/validate
+```
+
+Swap `d0000003-...` for a closed-restaurant demo, or
+`ffffffff-...` for 404 / `MENU_ITEM_NOT_FOUND` per-line evidence. Seed
+fixture table is in
+[`services/restaurant-service/src/main/resources/db/migration/V2__seed_demo_data.sql`](../restaurant-service/src/main/resources/db/migration/V2__seed_demo_data.sql)
+and the matching Menu file.

@@ -511,3 +511,109 @@ paths (verified against the tree at base commit `61288aa` plus the
 Phase 19 modifications). The pre-fix evidence is retained
 deliberately: a red-then-green pair makes the §1.3 bug fix
 auditable, and the files together cost < 4 KB.
+
+---
+
+## 9. Post-commit errata (added 2026-04-19 after tag `v1.0.0-cp3`)
+
+A post-tag frontend-health verification pass exercised every
+public and JWT-gated API path from the browser's side of the
+proxy. All six containers stayed healthy throughout; the live
+walk confirmed SPA, `/api/**` proxy, public menu browse, and
+auth-gated endpoints all work end-to-end. That pass also caught
+three factual errors in §3 (seeded demo fixtures), corrected
+below. The §3 text was written from memory rather than from a
+live `GET /api/restaurants` call; the live audit shows the
+following, verified against commit `50774fe` + the rebuilt stack.
+
+**§3.1 correction -- seeded owner user-IDs.** The three owners
+baked into the Phase 13 seed are `...000000001`, `...000000002`,
+`...000000003` (suffixes 1/2/3), **not** `...000000099` /
+`...000000098`. The `...099` suffix I quoted is the synthetic JWT
+dev-token *subject* used by `smoke.sh` and
+`smoke-cross-service.sh` when they stand up a transient owner to
+create a smoke-only restaurant. The demo role-map is therefore:
+
+- Seeded owner-1 (`...00000001`) -- owns seeded restaurants
+  `d0000001` (Pizza Antonio) and `d0000002` (Sushi Lumi).
+- Seeded owner-2 (`...00000002`) -- owns `d0000003` (Cafe Nero)
+  and `d0000004` (Burger Bros).
+- Seeded owner-3 (`...00000003`) -- owns `d0000005` (Vegan Vibes)
+  and `d0000006` (Pasta Palace).
+- Smoke-script transient owner (`...00000099`) -- creates
+  restaurants at the moment `smoke.sh` or
+  `smoke-cross-service.sh` runs; these persist in the DB until
+  the next `docker compose down -v`.
+- Customer (`...0000000c1`) -- used for every customer-facing
+  GET in the smoke scripts and by the demo's browser walk.
+
+Demo impact: the authorisation negative-path drill still works
+with any two distinct owner subjects (the Phase 15 check is
+"current JWT's userId must match the restaurant's ownerId"),
+so the demo narrative stands -- only the IDs in the script
+need updating to match the seeded set.
+
+**§3.3 correction -- menu-item counts.** The seed ships sixteen
+menu items across the six seeded restaurants (**not** eighteen,
+and **not** three-per-restaurant). Live distribution:
+
+| Restaurant | Items |
+|------------|-------|
+| Pizza Antonio (d0000001) | 4 |
+| Sushi Lumi (d0000002) | 3 |
+| Cafe Nero (d0000003) | 2 |
+| Burger Bros (d0000004) | 3 |
+| Vegan Vibes (d0000005) | 3 |
+| Pasta Palace (d0000006) | 1 |
+| **Total** | **16** |
+
+The menu-item DTO also has flat `priceAmount` (numeric) +
+`priceCurrency` (string = `"EUR"` throughout the seed) fields --
+**not** a nested `price: { amount, currency }` object. The
+frontend `MenuView.vue` consumes the flat shape correctly; the
+§3.3 description had it wrong.
+
+**§3.3 correction -- endpoint path for menu browse.** The correct
+browse endpoint is `GET /restaurants/{restaurantId}/menu-items`,
+**not** `GET /menu-items/by-restaurant/{rid}`. The latter does
+not exist on `menu-service` -- Spring's `NoResourceFoundException`
+falls through to a 500 via the global handler. The frontend's
+`MenuView.vue` line 120 and the Phase 17 report both use the
+correct nested path; only the verification-note text was wrong.
+The Phase 18 demo script and deck are unaffected.
+
+**§3.4 unchanged.** The order-flow verification (W1 sync chain)
+stands as written -- that claim was traced through the green
+smoke runs and did not depend on the seeded owner IDs.
+
+**Non-seed entries present.** `GET /api/restaurants` at the time
+of the errata pass returned nine entries total: the six seeded
+rows above plus three smoke-created rows left over from this
+session's smoke runs (owner `...099`, names like `Smoke Cafe
+<epoch>` / `X-Smoke Cafe <epoch>`). They are benign -- the next
+`docker compose down -v` clears them via the `menu_db_data` /
+`restaurant_db_data` volume drop. No action required before the
+2026-05-18 rehearsal.
+
+**Frontend health verified end-to-end.** Tested against the
+tagged rebuild on 2026-04-19 ~15:00:
+
+- `GET /` (SPA index): 200, Vue 3 SPA HTML with `/js/app.*` +
+  `/css/app.*` asset links.
+- `GET /api/restaurants` (public): 200, 9 entries.
+- `GET /api/restaurants/{rid}/menu-items` (public): 200, 16
+  items across the seeded 6.
+- `GET /api/menu-items/{id}` (public): 200, flat DTO.
+- `GET /actuator/health` on 8081 + 8082: both `UP`.
+- `GET /healthz` on dev-gateway (8080): `ok`.
+- Auth-negative (omit `Authorization`) on the same routes: all
+  endpoints above are public-readable in the current security
+  config (matches Phase 15 design: writes protected, reads
+  public). Gated mutations (POST/PATCH/PUT/DELETE) correctly
+  return 401 without a token.
+
+The tag `v1.0.0-cp3` is **not** moved; it continues to point at
+commit `50774fe` (the pre-errata snapshot). The errata land as a
+follow-up commit on `dev` so a grader running `HEAD` sees the
+corrected text and a grader checking out the tagged commit sees
+the original.

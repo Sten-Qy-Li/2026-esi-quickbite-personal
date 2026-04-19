@@ -27,6 +27,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -173,18 +174,24 @@ class RestaurantControllerTest {
 
     @Test
     void createRestaurant_impossibleOperatingHoursReturns400() throws Exception {
-        String invalidBody = """
-            { "name": "Pizza Antonio",
-              "address": "Ruutli 12", "city": "Tartu",
-              "latitude": 58.37, "longitude": 26.72,
-              "operatingHours": "99:99-99:99" }
-            """;
         mvc.perform(post("/restaurants")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + ownerToken)
-                .content(invalidBody))
+                .content(bodyWithHours("99:99-99:99")))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.validationErrors[?(@.field == 'operatingHours')]").exists());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void createRestaurant_outOfRangeOperatingHoursReturns400() throws Exception {
+        mvc.perform(post("/restaurants")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(bodyWithHours("24:00-24:00")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.validationErrors[?(@.field == 'operatingHours')]").exists());
+        verifyNoInteractions(service);
     }
 
     @Test
@@ -217,6 +224,17 @@ class RestaurantControllerTest {
     }
 
     @Test
+    void putRestaurant_outOfRangeOperatingHoursReturns400() throws Exception {
+        mvc.perform(put("/restaurants/{id}", RESTAURANT_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(bodyWithHours("29:59-29:59")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.validationErrors[?(@.field == 'operatingHours')]").exists());
+        verifyNoInteractions(service);
+    }
+
+    @Test
     void patchStatus_adminBypassesOwnership() throws Exception {
         when(service.setStatus(eq(RESTAURANT_ID), eq(true))).thenReturn(sampleResponse());
         mvc.perform(patch("/restaurants/{id}/status", RESTAURANT_ID)
@@ -227,14 +245,18 @@ class RestaurantControllerTest {
     }
 
     private static String validCreateBody() {
+        return bodyWithHours("11:00-22:00");
+    }
+
+    private static String bodyWithHours(String operatingHours) {
         return """
             { "name": "Pizza Antonio",
               "address": "Ruutli 12",
               "city": "Tartu",
               "latitude": 58.3776,
               "longitude": 26.7290,
-              "operatingHours": "11:00-22:00" }
-            """;
+              "operatingHours": "%s" }
+            """.formatted(operatingHours);
     }
 
     private static RestaurantResponse sampleResponse() {

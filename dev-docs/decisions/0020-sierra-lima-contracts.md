@@ -277,7 +277,8 @@ Notes:
 - `city`: `@NotBlank`, `@Size(max=120)`.
 - `latitude`: `@DecimalMin("-90.0")`, `@DecimalMax("90.0")`.
 - `longitude`: `@DecimalMin("-180.0")`, `@DecimalMax("180.0")`.
-- `operatingHours`: `@Pattern("^[0-2][0-9]:[0-5][0-9]-[0-2][0-9]:[0-5][0-9]$")`.
+- `operatingHours`: `@Pattern("^(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9]$")`.
+  Hours are strictly `00-23`; values such as `24:00` and `29:59` are invalid.
 
 **Menu Service (enforced in `CreateMenuItemRequest` /
 `UpdateMenuItemRequest`):**

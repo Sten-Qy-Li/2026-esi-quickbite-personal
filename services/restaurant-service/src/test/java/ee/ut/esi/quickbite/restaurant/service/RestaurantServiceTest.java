@@ -104,6 +104,38 @@ class RestaurantServiceTest {
     }
 
     @Test
+    void update_rejectsDuplicateNameForSameOwner() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Old Name",
+            new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
+        when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        when(currentUser.require()).thenReturn(ownerPrincipal);
+        when(restaurants.existsByOwnerIdAndNameIgnoreCaseAndRestaurantIdNot(
+            eq(OWNER_ID), eq("Pizza Antonio"), eq(id))).thenReturn(true);
+
+        assertThatThrownBy(() -> service.update(id, new UpdateRestaurantRequest(
+            "Pizza Antonio", "Addr 2", "Tartu", 58.1, 26.1, "11:00-23:00"
+        ))).isInstanceOf(DuplicateRestaurantException.class);
+    }
+
+    @Test
+    void update_allowsSameCaseInsensitiveNameOnSameRestaurant() {
+        UUID id = UUID.randomUUID();
+        Restaurant existing = new Restaurant(OWNER_ID, "Pizza Antonio",
+            new Location("Addr", "Tartu", 58.0, 26.0), "10:00-20:00");
+        when(restaurants.findById(eq(id))).thenReturn(Optional.of(existing));
+        when(currentUser.require()).thenReturn(ownerPrincipal);
+        when(restaurants.existsByOwnerIdAndNameIgnoreCaseAndRestaurantIdNot(
+            eq(OWNER_ID), eq("PIZZA ANTONIO"), eq(id))).thenReturn(false);
+
+        RestaurantResponse updated = service.update(id, new UpdateRestaurantRequest(
+            "PIZZA ANTONIO", "Addr 2", "Tartu", 58.1, 26.1, "11:00-23:00"
+        ));
+
+        assertThat(updated.name()).isEqualTo("PIZZA ANTONIO");
+    }
+
+    @Test
     void update_deniedWhenCallerIsNotOwnerOrAdmin() {
         UUID id = UUID.randomUUID();
         Restaurant existing = new Restaurant(OWNER_ID, "Old Name",

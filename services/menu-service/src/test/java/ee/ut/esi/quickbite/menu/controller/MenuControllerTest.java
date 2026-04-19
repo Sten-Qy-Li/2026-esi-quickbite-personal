@@ -29,6 +29,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -256,6 +257,16 @@ class MenuControllerTest {
         mvc.perform(delete("/menu-items/{id}", MENU_ITEM_ID)
                 .header("Authorization", "Bearer " + ownerToken))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patchMenuItem_unsupportedMethodReturns405() throws Exception {
+        mvc.perform(patch("/menu-items/{id}", MENU_ITEM_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(validCreateBody()))
+            .andExpect(status().isMethodNotAllowed())
+            .andExpect(jsonPath("$.status").value(405));
     }
 
     @Test

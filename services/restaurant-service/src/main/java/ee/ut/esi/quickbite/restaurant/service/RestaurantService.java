@@ -75,6 +75,9 @@ public class RestaurantService {
     public RestaurantResponse update(UUID id, UpdateRestaurantRequest req) {
         Restaurant r = requireRestaurant(id);
         requireOwnerOrAdmin(r, "PUT /restaurants/" + id);
+        if (restaurants.existsByOwnerIdAndNameIgnoreCaseAndRestaurantIdNot(r.getOwnerId(), req.name(), id)) {
+            throw new DuplicateRestaurantException(r.getOwnerId(), req.name());
+        }
         Location location = new Location(req.address(), req.city(), req.latitude(), req.longitude());
         r.updateDetails(req.name(), location, req.operatingHours());
         return RestaurantResponse.from(r);

@@ -2,6 +2,7 @@ package ee.ut.esi.quickbite.restaurant.controller;
 
 import ee.ut.esi.quickbite.restaurant.dto.AvailabilityResponse;
 import ee.ut.esi.quickbite.restaurant.dto.RestaurantResponse;
+import ee.ut.esi.quickbite.restaurant.exception.DuplicateRestaurantException;
 import ee.ut.esi.quickbite.restaurant.exception.RestaurantNotFoundException;
 import ee.ut.esi.quickbite.restaurant.security.JwtDevMint;
 import ee.ut.esi.quickbite.restaurant.security.JwtProperties;
@@ -29,6 +30,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -221,6 +223,27 @@ class RestaurantControllerTest {
                 .content(validCreateBody()))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
+    void putRestaurant_duplicateNameForSameOwnerReturns409() throws Exception {
+        doThrow(new DuplicateRestaurantException(JwtDevMint.DEFAULT_OWNER_USER_ID, "Pizza Antonio"))
+            .when(service).update(eq(RESTAURANT_ID), any());
+        mvc.perform(put("/restaurants/{id}", RESTAURANT_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + ownerToken)
+                .content(validCreateBody()))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value(409))
+            .andExpect(jsonPath("$.error").value("Conflict"));
+    }
+
+    @Test
+    void deleteRestaurant_unsupportedMethodReturns405() throws Exception {
+        mvc.perform(delete("/restaurants/{id}", RESTAURANT_ID)
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isMethodNotAllowed())
+            .andExpect(jsonPath("$.status").value(405));
     }
 
     @Test

@@ -20,6 +20,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
 
     boolean existsByOwnerIdAndNameIgnoreCase(UUID ownerId, String name);
 
+    boolean existsByOwnerIdAndNameIgnoreCaseAndRestaurantIdNot(UUID ownerId, String name, UUID restaurantId);
+
     @Query("""
         SELECT r FROM Restaurant r
         WHERE (cast(:city as string) IS NULL

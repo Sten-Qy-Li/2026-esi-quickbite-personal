@@ -1,12 +1,16 @@
 <template>
   <section class="home">
     <h1>QuickBite</h1>
-    <p class="muted">Order food from local restaurants. The Phase 12 shell ships login, routing, and a tokenised API client.</p>
+    <p class="muted">Order food from local restaurants. Browse restaurants, view menus, and (for owners) manage them.</p>
 
     <div class="cards">
       <router-link to="/restaurants" class="card">
         <h3>Browse restaurants</h3>
         <p>See open spots near you and explore menus.</p>
+      </router-link>
+      <router-link v-if="canManage" to="/restaurants/new" class="card">
+        <h3>Add a restaurant</h3>
+        <p>Create a new restaurant profile.</p>
       </router-link>
       <router-link v-if="authed" to="/orders" class="card">
         <h3>Track your orders</h3>
@@ -23,13 +27,14 @@
 </template>
 
 <script>
-import { isAuthenticated } from '../auth/token.js';
+import { isAuthenticated, canManageRestaurants } from '../auth/token.js';
 import { baseUrl } from '../api/client.js';
 
 export default {
   name: 'HomeView',
   computed: {
     authed() { return isAuthenticated(); },
+    canManage() { return canManageRestaurants(); },
     apiBase() { return baseUrl; }
   }
 };

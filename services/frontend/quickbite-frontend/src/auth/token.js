@@ -49,3 +49,20 @@ export function readClaims() {
     return null;
   }
 }
+
+export function readRole() {
+  const claims = readClaims();
+  if (!claims) return null;
+  return claims.role || (Array.isArray(claims.roles) ? claims.roles[0] : null);
+}
+
+export function readUserId() {
+  const claims = readClaims();
+  if (!claims) return null;
+  return claims.userId || claims.sub || null;
+}
+
+export function canManageRestaurants() {
+  const role = readRole();
+  return role === 'RestaurantOwner' || role === 'Admin';
+}

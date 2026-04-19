@@ -6,7 +6,10 @@ import LoginView from '../views/LoginView.vue';
 import SignupView from '../views/SignupView.vue';
 import RestaurantListView from '../views/RestaurantListView.vue';
 import RestaurantDetailView from '../views/RestaurantDetailView.vue';
+import AddRestaurantView from '../views/AddRestaurantView.vue';
 import MenuView from '../views/MenuView.vue';
+import AddMenuItemView from '../views/AddMenuItemView.vue';
+import MenuItemDetailView from '../views/MenuItemDetailView.vue';
 import CartView from '../views/CartView.vue';
 import OrderStatusView from '../views/OrderStatusView.vue';
 import NotFoundView from '../views/NotFoundView.vue';
@@ -26,6 +29,12 @@ const routes = [
     component: RestaurantListView
   },
   {
+    path: '/restaurants/new',
+    name: 'restaurant-new',
+    component: AddRestaurantView,
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/restaurants/:id',
     name: 'restaurant-detail',
     component: RestaurantDetailView,
@@ -35,6 +44,18 @@ const routes = [
     path: '/restaurants/:id/menu',
     name: 'restaurant-menu',
     component: MenuView,
+    props: true
+  },
+  {
+    path: '/menu-items/new',
+    name: 'menu-item-new',
+    component: AddMenuItemView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/menu-items/:id',
+    name: 'menu-item-detail',
+    component: MenuItemDetailView,
     props: true
   },
   {

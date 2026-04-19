@@ -93,6 +93,56 @@ services:
       retries: 12
       start_period: 30s
 
+  frontend:
+    build:
+      context: ../frontend/quickbite-frontend
+      dockerfile: Dockerfile
+    image: quickbite/frontend:local
+    container_name: quickbite-frontend
+    environment:
+      # API Gateway upstream the nginx template proxies /api/** to.
+      # Default assumes Alfa-Kilo's gateway joins the same compose
+      # network as `api-gateway`. Override in .env.local if the
+      # gateway runs on a different hostname or outside compose.
+      GATEWAY_UPSTREAM: ${GATEWAY_UPSTREAM:-http://api-gateway:8080}
+    ports:
+      - "${FRONTEND_HOST_PORT:-8090}:80"
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  # Opt-in dev stub that stands in for Alfa-Kilo's real API Gateway
+  # during Sierra-Lima's CP#2 integration rehearsal. Gated behind the
+  # `dev-gateway` compose profile so it never runs for the canonical
+  # stack; enable with `--profile dev-gateway` or by setting
+  # COMPOSE_PROFILES=dev-gateway in .env.local.
+  dev-gateway:
+    image: nginx:1.27-alpine
+    container_name: quickbite-dev-gateway
+    profiles: ["dev-gateway"]
+    volumes:
+      - ./dev-gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${DEV_GATEWAY_HOST_PORT:-8080}:80"
+    networks:
+      - quickbite-net
+    depends_on:
+      restaurant-service:
+        condition: service_healthy
+      menu-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz | grep -q '^ok$$' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
 networks:
   quickbite-net:
     driver: bridge

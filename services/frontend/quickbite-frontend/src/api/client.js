@@ -1,8 +1,14 @@
 import { getToken, clearToken } from '../auth/token.js';
 
-const BASE_URL =
-  (typeof process !== 'undefined' && process.env && process.env.VUE_APP_API_BASE_URL) ||
-  'http://localhost:8080';
+// `VUE_APP_API_BASE_URL` is baked at build time by Vue CLI. An explicit
+// empty value means "same-origin" -- the nginx build (Phase 14) serves
+// the UI and proxies `/api/**` to the gateway, so the browser should
+// skip CORS entirely by hitting its own origin. An unset variable
+// falls back to the dev gateway at :8080.
+const rawBase = (typeof process !== 'undefined' && process.env)
+  ? process.env.VUE_APP_API_BASE_URL
+  : undefined;
+const BASE_URL = (typeof rawBase === 'string') ? rawBase : 'http://localhost:8080';
 
 export class ApiError extends Error {
   constructor(message, { status = 0, body = null, cause = null } = {}) {

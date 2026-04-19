@@ -68,7 +68,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:8080"));
+        // Browser-visible origins that may call the service directly (dev)
+        // or via the gateway. The compose frontend is served by nginx on
+        // :80 (container) / :8090 (host). The Vue CLI dev server is
+        // :8090. Gateway itself is :8080.
+        config.setAllowedOrigins(List.of(
+            "http://localhost",
+            "http://localhost:5173",
+            "http://localhost:8080",
+            "http://localhost:8090"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

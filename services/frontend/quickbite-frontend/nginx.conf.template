@@ -1,0 +1,45 @@
+# nginx config template. Substituted at container start by the
+# nginx:alpine entrypoint (envsubst on /etc/nginx/templates/*.template),
+# with ${GATEWAY_UPSTREAM} pulled from the container env. Kept terse:
+# a static SPA root with HTML5-history fallback, plus an /api/**
+# reverse proxy to the gateway so the browser never talks cross-origin.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Defer upstream DNS to runtime so nginx boots even if the gateway
+    # container hasn't come up yet (Docker's embedded resolver lives
+    # at 127.0.0.11). Using a variable in proxy_pass is what flips
+    # nginx into deferred-resolution mode.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    # Reverse-proxy /api/** to the API Gateway. The gateway itself
+    # strips the /api prefix before dispatching (decision 0020 §10),
+    # so we forward the request URI verbatim. With the variable form
+    # and no URI on proxy_pass, nginx passes $request_uri unchanged.
+    location /api/ {
+        set $upstream ${GATEWAY_UPSTREAM};
+        proxy_pass $upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Allow generous bodies for menu item descriptions etc.
+        client_max_body_size 2m;
+        # Longer read timeout covers the gateway's own
+        # service-to-service hop latency.
+        proxy_read_timeout 30s;
+    }
+
+    # SPA fallback: Vue Router uses HTML5 history mode. Any non-asset
+    # path should be served `index.html` so the client-side router can
+    # pick up the route.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -3,6 +3,8 @@
 
 # Log file
 *.log
+# But track cross-service smoke evidence (audit trail for Phase 16+ DoD).
+!services/local-dev/evidence/*.log
 
 # BlueJ files
 *.ctxt

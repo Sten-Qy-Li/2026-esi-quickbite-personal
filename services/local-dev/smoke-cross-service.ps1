@@ -190,6 +190,18 @@ if ($restaurantId) {
         Write-Trace "menuItemId=$menuItemId"
     }
 
+    # New restaurants are created with isOpen=false per F.3; flip to open so
+    # the availability probe below reflects a "ready to serve" state, matching
+    # the equivalent step in smoke.ps1.
+    $openResp = Invoke-SmokeRequest -Method PATCH -Url "$RestaurantBase/restaurants/$restaurantId/status" -Token $ownerToken -ExpectedStatus 200 -Body @{
+        isOpen = $true
+    }
+    if (-not $openResp.ok) {
+        Write-FailSierra "PATCH /restaurants/{rid}/status expected 200, got $($openResp.status)"
+    } else {
+        Write-Info 'restaurant toggled open'
+    }
+
     $avail = Invoke-SmokeRequest -Method GET -Url "$RestaurantBase/restaurants/$restaurantId/availability" -Token $customerToken -ExpectedStatus 200
     if (-not $avail.ok) {
         Write-FailSierra "GET availability expected 200, got $($avail.status)"

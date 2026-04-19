@@ -215,6 +215,20 @@ if [[ -n "${RESTAURANT_ID:-}" ]]; then
         trace "menuItemId=${MENU_ITEM_ID}"
     fi
 
+    # New restaurants are created with isOpen=false per F.3; flip to open
+    # so the availability probe below reflects a "ready to serve" state,
+    # matching the equivalent step in smoke.sh.
+    OPEN_CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+        -X PATCH -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer ${OWNER_TOKEN}" \
+        -d '{"isOpen": true}' \
+        "${RESTAURANT_BASE}/restaurants/${RESTAURANT_ID}/status" 2>/dev/null || true)
+    if [[ "$OPEN_CODE" != "200" ]]; then
+        fail_sierra "PATCH /restaurants/{rid}/status expected 200, got ${OPEN_CODE}"
+    else
+        info "restaurant toggled open"
+    fi
+
     AVAIL_RESP=$(mktemp)
     AVAIL_CODE=$(curl -sS -o "$AVAIL_RESP" -w '%{http_code}' \
         -H "Authorization: Bearer ${CUSTOMER_TOKEN}" \

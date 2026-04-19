@@ -104,16 +104,22 @@ services:
     container_name: quickbite-frontend
     environment:
       # API Gateway upstream the nginx template proxies /api/** to.
-      # Default assumes Alfa-Kilo's gateway joins the same compose
-      # network as `api-gateway`. Override in .env.local if the
-      # gateway runs on a different hostname or outside compose.
-      GATEWAY_UPSTREAM: ${GATEWAY_UPSTREAM:-http://api-gateway:8080}
+      # Default is the `dev-gateway` stub (opt-in via the same-named
+      # compose profile) because this personal repo always demos with
+      # it. Override in .env.local to `http://api-gateway:8080` when
+      # the team's combined compose is in use, or to another URL (e.g.
+      # `http://host.docker.internal:8080`) to hit a gateway outside
+      # compose.
+      GATEWAY_UPSTREAM: ${GATEWAY_UPSTREAM:-http://dev-gateway:80}
     ports:
       - "${FRONTEND_HOST_PORT:-8090}:80"
     networks:
       - quickbite-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      # BusyBox wget inside nginx:alpine resolves "localhost" to ::1 first,
+      # but the rendered template-derived server block only listens on IPv4.
+      # Probe 127.0.0.1 directly so the container reports healthy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -140,7 +146,8 @@ services:
       menu-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz | grep -q '^ok$$' || exit 1"]
+      # Probe 127.0.0.1 explicitly: see frontend healthcheck note above.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -q '^ok$$' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 6

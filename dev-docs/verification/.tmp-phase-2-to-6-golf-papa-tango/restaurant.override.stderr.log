@@ -1,0 +1,6 @@
+[31;1mjdbc:postgresql://172.20.0.2:5432/restaurant_db: [31;1mThe term 'jdbc:postgresql://172.20.0.2:5432/restaurant_db' is not recognized as a name of a cmdlet, function, script file, or executable program.[0m
+[31;1m[31;1mCheck the spelling of the name, or if a path was included, verify that the path is correct and try again.[0m
+[31;1mrestaurant_user: [31;1mThe term 'restaurant_user' is not recognized as a name of a cmdlet, function, script file, or executable program.[0m
+[31;1m[31;1mCheck the spelling of the name, or if a path was included, verify that the path is correct and try again.[0m
+[31;1mrestaurant_pw: [31;1mThe term 'restaurant_pw' is not recognized as a name of a cmdlet, function, script file, or executable program.[0m
+[31;1m[31;1mCheck the spelling of the name, or if a path was included, verify that the path is correct and try again.[0m

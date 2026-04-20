@@ -1,0 +1,162 @@
+services:
+  restaurant-db:
+    image: postgres:15
+    container_name: quickbite-restaurant-db
+    environment:
+      POSTGRES_DB: ${RESTAURANT_DB_NAME:-restaurant_db}
+      POSTGRES_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      POSTGRES_PASSWORD: ${RESTAURANT_DB_PASSWORD:-restaurant_pw}
+    ports:
+      - "${RESTAURANT_DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - restaurant_db_data:/var/lib/postgresql/data
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RESTAURANT_DB_USER:-restaurant_user} -d ${RESTAURANT_DB_NAME:-restaurant_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  menu-db:
+    image: postgres:15
+    container_name: quickbite-menu-db
+    environment:
+      POSTGRES_DB: ${MENU_DB_NAME:-menu_db}
+      POSTGRES_USER: ${MENU_DB_USER:-menu_user}
+      POSTGRES_PASSWORD: ${MENU_DB_PASSWORD:-menu_pw}
+    ports:
+      - "${MENU_DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - menu_db_data:/var/lib/postgresql/data
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MENU_DB_USER:-menu_user} -d ${MENU_DB_NAME:-menu_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  restaurant-service:
+    build:
+      context: ../restaurant-service
+      dockerfile: Dockerfile
+    image: quickbite/restaurant-service:local
+    container_name: quickbite-restaurant-service
+    depends_on:
+      restaurant-db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8081"
+      DB_URL: jdbc:postgresql://restaurant-db:5432/${RESTAURANT_DB_NAME:-restaurant_db}
+      DB_USER: ${RESTAURANT_DB_USER:-restaurant_user}
+      DB_PASSWORD: ${RESTAURANT_DB_PASSWORD:-restaurant_pw}
+      JWT_SECRET: ${JWT_SECRET:-dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=}
+      JWT_ISSUER: ${JWT_ISSUER:-quickbite-user-service}
+    ports:
+      - "8081:8081"
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  menu-service:
+    build:
+      context: ../menu-service
+      dockerfile: Dockerfile
+    image: quickbite/menu-service:local
+    container_name: quickbite-menu-service
+    depends_on:
+      menu-db:
+        condition: service_healthy
+      restaurant-service:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8082"
+      DB_URL: jdbc:postgresql://menu-db:5432/${MENU_DB_NAME:-menu_db}
+      DB_USER: ${MENU_DB_USER:-menu_user}
+      DB_PASSWORD: ${MENU_DB_PASSWORD:-menu_pw}
+      JWT_SECRET: ${JWT_SECRET:-dGVzdC1zZWNyZXQtZm9yLWRldi1vbmx5LWRvLW5vdC11c2UtaW4tcHJvZC0xMjM0NTY=}
+      JWT_ISSUER: ${JWT_ISSUER:-quickbite-user-service}
+      RESTAURANT_SERVICE_BASE_URL: ${RESTAURANT_SERVICE_BASE_URL:-http://restaurant-service:8081}
+    ports:
+      - "8082:8082"
+    networks:
+      - quickbite-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ../frontend/quickbite-frontend
+      dockerfile: Dockerfile
+    image: quickbite/frontend:local
+    container_name: quickbite-frontend
+    environment:
+      # API Gateway upstream the nginx template proxies /api/** to.
+      # Default is the `dev-gateway` stub (opt-in via the same-named
+      # compose profile) because this personal repo always demos with
+      # it. Override in .env.local to `http://api-gateway:8080` when
+      # the team's combined compose is in use, or to another URL (e.g.
+      # `http://host.docker.internal:8080`) to hit a gateway outside
+      # compose.
+      GATEWAY_UPSTREAM: ${GATEWAY_UPSTREAM:-http://dev-gateway:80}
+    ports:
+      - "${FRONTEND_HOST_PORT:-8090}:80"
+    networks:
+      - quickbite-net
+    healthcheck:
+      # BusyBox wget inside nginx:alpine resolves "localhost" to ::1 first,
+      # but the rendered template-derived server block only listens on IPv4.
+      # Probe 127.0.0.1 directly so the container reports healthy.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  # Opt-in dev stub that stands in for Alfa-Kilo's real API Gateway
+  # during Sierra-Lima's CP#2 integration rehearsal. Gated behind the
+  # `dev-gateway` compose profile so it never runs for the canonical
+  # stack; enable with `--profile dev-gateway` or by setting
+  # COMPOSE_PROFILES=dev-gateway in .env.local.
+  dev-gateway:
+    image: nginx:1.27-alpine
+    container_name: quickbite-dev-gateway
+    profiles: ["dev-gateway"]
+    volumes:
+      - ./dev-gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${DEV_GATEWAY_HOST_PORT:-8080}:80"
+    networks:
+      - quickbite-net
+    depends_on:
+      restaurant-service:
+        condition: service_healthy
+      menu-service:
+        condition: service_healthy
+    healthcheck:
+      # Probe 127.0.0.1 explicitly: see frontend healthcheck note above.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz | grep -q '^ok$$' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+networks:
+  quickbite-net:
+    driver: bridge
+
+volumes:
+  restaurant_db_data:
+  menu_db_data:

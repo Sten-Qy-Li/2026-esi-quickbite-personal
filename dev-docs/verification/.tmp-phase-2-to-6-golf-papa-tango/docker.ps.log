@@ -1,0 +1,3 @@
+NAMES`tSTATUS`tPORTS
+quickbite-menu-db`tUp Less than a second (health: starting)`t0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+quickbite-restaurant-db`tUp Less than a second (health: starting)`t0.0.0.0:5442->5432/tcp, [::]:5442->5432/tcp

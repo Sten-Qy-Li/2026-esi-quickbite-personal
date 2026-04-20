@@ -1,0 +1,33 @@
+2026-04-19T16:33:08Z == Phase 16 cross-service smoke ==
+2026-04-19T16:33:08Z Restaurant        : http://localhost:8081
+2026-04-19T16:33:08Z Menu              : http://localhost:8082
+2026-04-19T16:33:08Z Gateway (probe)   : http://localhost:8080
+2026-04-19T16:33:08Z User (probe)      : <unset>
+2026-04-19T16:33:08Z Order (probe)     : <unset>
+2026-04-19T16:33:08Z Payment (probe)   : <unset>
+2026-04-19T16:33:08Z Delivery (probe)  : <unset>
+2026-04-19T16:33:08Z Notification      : <unset>
+2026-04-19T16:33:08Z Docker available  : yes
+2026-04-19T16:33:08Z Trace file        : /c/MSc-Computer-Science/Semester-2/esi/2026-esi-quickbite-personal/services/local-dev/evidence/cross-service-smoke_20260419T163307Z.log
+2026-04-19T16:33:08Z 
+2026-04-19T16:33:08Z [STEP 1] Mint dev tokens (owner + customer)
+2026-04-19T16:33:09Z 
+2026-04-19T16:33:09Z [STEP 2] Sierra-Lima W1 hops (create restaurant, add menu item, availability, validate)
+2026-04-19T16:33:09Z restaurantId=06da06cb-3b47-4f84-b47f-f4d883c3e5b6
+2026-04-19T16:33:10Z menuItemId=57784390-562f-45da-98a7-9d76ec8077f5
+2026-04-19T16:33:10Z 
+2026-04-19T16:33:11Z [STEP 3] Toggle menu item availability to exercise the menu-events publisher
+2026-04-19T16:33:11Z menu-events evidence: /c/MSc-Computer-Science/Semester-2/esi/2026-esi-quickbite-personal/services/local-dev/evidence/menu-events_20260419T163307Z.log (2 lines)
+2026-04-19T16:33:11Z 
+2026-04-19T16:33:11Z [STEP 4] Teammate service probes (optional)
+2026-04-19T16:33:11Z gateway: reachable
+2026-04-19T16:33:11Z User Service: unset
+2026-04-19T16:33:11Z Order Service: unset
+2026-04-19T16:33:11Z Payment Service: unset
+2026-04-19T16:33:12Z Delivery Service: unset
+2026-04-19T16:33:12Z Notification Service: unset
+2026-04-19T16:33:12Z 
+2026-04-19T16:33:12Z [SUMMARY]
+2026-04-19T16:33:12Z sierra-lima failures = 0
+2026-04-19T16:33:12Z teammate failures    = 0
+2026-04-19T16:33:12Z trace file           = /c/MSc-Computer-Science/Semester-2/esi/2026-esi-quickbite-personal/services/local-dev/evidence/cross-service-smoke_20260419T163307Z.log

@@ -3,6 +3,8 @@
 
 # Log file
 *.log
+# But track cross-service smoke evidence (audit trail for Phase 16+ DoD).
+!services/local-dev/evidence/*.log
 
 # BlueJ files
 *.ctxt
@@ -22,3 +24,18 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# IDE / editor local settings
+.idea/
+.claude/
+*.iml
+
+# Maven
+target/
+
+# Local environment overrides (only the template .env.example is tracked)
+.env.local
+**/.env.local
+
+# Spring Boot runtime artefacts
+HELP.md

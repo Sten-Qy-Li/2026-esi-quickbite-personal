@@ -204,6 +204,17 @@ class RestaurantControllerTest {
     }
 
     @Test
+    void wrongIssuerJwtReturns401() throws Exception {
+        String wrongIssuerToken = JwtDevMint.mint(jwt.secret(), "wrong-issuer", jwt.ttl(),
+            JwtDevMint.DEFAULT_CUSTOMER_USER_ID, "dev-customer", "Customer");
+        mvc.perform(get("/restaurants/{id}/availability", RESTAURANT_ID)
+                .header("Authorization", "Bearer " + wrongIssuerToken))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.status").value(401));
+        verifyNoInteractions(service);
+    }
+
+    @Test
     void patchStatus_customerForbidden() throws Exception {
         mvc.perform(patch("/restaurants/{id}/status", RESTAURANT_ID)
                 .contentType(MediaType.APPLICATION_JSON)

@@ -50,9 +50,28 @@ Q6 in [`0004-open-questions.md`](../../dev-docs/decisions/0004-open-questions.md
 
 ## Current state
 
-No code yet. The Maven skeleton and first Flyway migration are created
-in **Phase 2**. The REST controllers land in **Phase 3** and **Phase 4**.
-Auth (JWT filter) is added in **Phase 7**.
+Implemented. The service boots from `RestaurantServiceApplication`,
+exposes the six endpoints below, persists to a Flyway-backed PostgreSQL
+schema (`V1__init.sql` + `V2__seed_demo_data.sql`), and ships with
+controller, service, and repository tests.
+
+Endpoints:
+
+- `POST /restaurants` -- create (owner/admin)
+- `GET /restaurants` -- paged list with `city` / `isOpen` filters (public)
+- `GET /restaurants/{id}` -- fetch by id (public)
+- `PUT /restaurants/{id}` -- update (owner of record or admin)
+- `PATCH /restaurants/{id}/status` -- toggle open/closed (owner or admin)
+- `GET /restaurants/{id}/availability` -- W1 availability probe (any authenticated role)
+
+Run locally:
+
+- Tests: `mvn clean test` from this directory.
+- Full stack (DB + service + friends): see
+  [`../local-dev/README.md`](../local-dev/README.md).
+
+JWT auth (issuer-pinned HS256) is wired in `security/JwtAuthFilter`;
+the shared dev secret and issuer live in `.env.example`.
 
 ## Related decisions
 

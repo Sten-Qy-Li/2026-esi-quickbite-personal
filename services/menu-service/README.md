@@ -55,10 +55,30 @@ stretch, not baseline scope.
 
 ## Current state
 
-No code yet. The Maven skeleton and first Flyway migration are created
-in **Phase 2**. The aggregate and repository land in **Phase 5**. REST
-controllers land in **Phase 6**. Auth (JWT filter) is added in
-**Phase 7**.
+Implemented. The service boots from `MenuServiceApplication`, exposes
+the six endpoints below, persists to a Flyway-backed PostgreSQL schema
+(`V1__init.sql` + `V2__seed_demo_data.sql`), and ships with controller,
+service, and event-publisher tests.
+
+Endpoints:
+
+- `POST /restaurants/{rid}/menu-items` -- create (owner of the restaurant or admin)
+- `GET /restaurants/{rid}/menu-items` -- browse (public, R22)
+- `GET /menu-items/{id}` -- fetch by id (public)
+- `PUT /menu-items/{id}` -- update (owner or admin)
+- `DELETE /menu-items/{id}` -- remove (owner or admin)
+- `POST /menu-items/validate` -- W1 batch validation (any authenticated role)
+
+Run locally:
+
+- Tests: `mvn clean test` from this directory.
+- Full stack (DB + service + friends): see
+  [`../local-dev/README.md`](../local-dev/README.md).
+
+JWT auth (issuer-pinned HS256) is wired in `security/JwtAuthFilter`;
+restaurant ownership is checked via `RestaurantOwnershipClient` against
+`restaurant-service`. The optional `menu.item-availability-changed`
+Kafka producer remains a Phase 16 stretch.
 
 ## Related decisions
 

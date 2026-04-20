@@ -293,6 +293,18 @@ class MenuControllerTest {
             .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void wrongIssuerJwtReturns401() throws Exception {
+        String wrongIssuerToken = JwtDevMint.mint(jwt.secret(), "wrong-issuer", jwt.ttl(),
+            JwtDevMint.DEFAULT_CUSTOMER_USER_ID, "dev-customer", "Customer");
+        mvc.perform(post("/menu-items/validate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + wrongIssuerToken)
+                .content(validValidateBody()))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.status").value(401));
+    }
+
     private static String validCreateBody() {
         return """
             { "name": "Margherita",

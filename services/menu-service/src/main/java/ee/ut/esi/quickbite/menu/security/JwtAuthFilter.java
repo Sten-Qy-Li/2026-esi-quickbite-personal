@@ -57,6 +57,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             Claims claims = Jwts.parserBuilder()
                 .setSigningKey(signingKey)
+                .requireIssuer(jwt.issuer())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

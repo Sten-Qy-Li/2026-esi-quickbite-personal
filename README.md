@@ -249,7 +249,7 @@ If you landed here for a different reason:
 
 This is coursework in progress. Authors:
 
-- Human owner: Sterling Li (Sten-Qy-Li, pseudonym **Sierra-Lima**),
+- Human owner: Sten-Qy-Li, pseudonym **Sierra-Lima**,
   MSc Computer Science, University of Tartu, 2026.
 - AI coding agents (Claude Code, acting under explicit user
   direction): **Charlie-Lima-Alfa** and **Golf-Papa-Tango** for

@@ -274,15 +274,15 @@ code quality.
 ### F3. Low -- "Full system running" depends on teammate compose that is not in this repo
 
 - **Brief reference:** §4.3 B (CP#3, 2 points).
-- **Claim:** Sierra-Lima's `docker-compose.yml` boots her two services,
-  two DBs, her frontend build, and an nginx `dev-gateway` stub. It
+- **Claim:** Sierra-Lima's `docker-compose.yml` boots his two services,
+  two DBs, his frontend build, and an nginx `dev-gateway` stub. It
   does **not** boot User, Order, Payment, Delivery, Notification, the
   real Spring Cloud Gateway, or Kafka.
 - **Why this is Low not Medium:** the brief §2 places the API
   Gateway and Messaging/Event infrastructure in the "integration
   components" list -- owned here by Alfa-Kilo (gateway) and Mike-Alfa
   (broker) per `0001`. Sierra-Lima's rubric entry B is met **by the
-  team's joint compose**, not by her personal repo. Decision `0001`
+  team's joint compose**, not by his personal repo. Decision `0001`
   and `0040` both pre-commit to this split.
 - **Residual risk:** if the team has not produced a joint
   `docker-compose.yml` that includes Sierra-Lima's services by 19
@@ -291,7 +291,7 @@ code quality.
 - **Recommendation:** during the next team lead sync, confirm who
   owns the combined compose file and request an early mock-up.
   Sierra-Lima's services already accept all their configuration
-  via environment variables so no code change is expected on her
+  via environment variables so no code change is expected on his
   side.
 
 ### F4. Informational -- Untracked evidence artefacts

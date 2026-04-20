@@ -100,7 +100,7 @@ Structure:
   genuinely UI-missing path. Recommendation: add a delete control
   to `MenuItemDetailView.vue` before 19 May.
 - **F3 Low -- "Full system in Docker" depends on the team's combined
-  compose assembly.** Sierra-Lima's compose boots her own slice +
+  compose assembly.** Sierra-Lima's compose boots his own slice +
   `dev-gateway` stub; the real gateway, the broker, and the five
   teammate services are not in this repo by design (`0001`).
   Recommendation: ask the team lead who owns the combined compose.

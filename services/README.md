@@ -80,7 +80,7 @@ are in each service's own README.
   endpoint paths, HTTP status codes, or env-var names -- look them
   up.
 - **Scope freeze.** Sierra-Lima owns only `restaurant-service` and
-  `menu-service` (plus her share of the frontend + local-dev stack).
+  `menu-service` (plus his share of the frontend + local-dev stack).
   Do not modify files that presuppose teammate-owned services.
 - **Tests run fast.** `mvn test` in each service takes <1 min on a
   warm cache. Run them after every non-trivial change; they are the

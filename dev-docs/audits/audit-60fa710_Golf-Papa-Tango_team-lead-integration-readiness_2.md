@@ -1,192 +1,101 @@
-# Team-Lead Integration Readiness Audit -- local repository state rooted at `60fa710`
+# Team-Lead Integration Readiness Audit -- current local repository state
+
+This file keeps the historical `60fa710` audit-chain name, but the conclusions below audit the **current local repository state at `HEAD d1cec1d`**.
 
 | Field | Value |
 | --- | --- |
-| `HEAD` commit | `60fa710c29e4417208864dce3d710e856bd782bf` |
-| Commit subject | `Patch Golf-Papa-Tango bcc9dd0 findings 1-2` |
+| `HEAD` commit | `d1cec1d386c36e35af9f9220943da3930f49046a` |
+| Commit subject | `Patch Golf-Papa-Tango 60fa710 audit_2 findings 2-4` |
 | Branch observed | `dev` |
 | Audit date | `2026-04-19` |
 | Auditor | `Golf-Papa-Tango` |
 | Scope | Sierra-Lima-owned slice: Restaurant Service, Menu Service, Sierra-Lima frontend surfaces, local-dev stack, and Sierra-Lima's W1 responsibilities |
-| Working tree status | `DIRTY` -- 3 modified Menu Service files are not committed |
-| Verdict | `CONDITIONALLY READY` |
-
-## Executive summary
-
-The current **local repository contents** sufficiently cover Sierra-Lima's Assignment 3 responsibilities:
-
-- `Restaurant Service` is implemented with the expected six endpoints.
-- `Menu Service` is implemented with the expected six endpoints.
-- both service schemas, Flyway migrations, seed data, JWT enforcement, and W1 endpoints are present and working;
-- the local-dev Docker stack, dev-gateway stub, frontend build, and Sierra-Lima smoke paths all run successfully.
-
-However, the repository is **not cleanly handover-ready as a git state yet**:
-
-1. the fix that closes the previously-audited Menu orphan-item defect exists only as **uncommitted local changes**;
-2. the tracked Windows validation scripts (`smoke.ps1`, `smoke-cross-service.ps1`) are currently broken on the actual local PowerShell environment;
-3. the frontend has a few client-side validation gaps relative to the backend contract.
-
-So the right verdict is:
-
-- **Ready enough in the current local folder, if the team lead receives these exact local files**.
-- **Not ready as commit `60fa710` alone, and not ready for a normal git handoff until the current Menu Service fix is committed.**
+| Working tree at audit start | `CLEAN` |
+| Verdict | `CONDITIONALLY READY FOR TEAM-LEAD INTEGRATION` |
 
 ## Findings
 
-### 1. Medium-High -- the critical Menu Service fix is present only in the local worktree, not in `HEAD`
+### 1. Medium -- both services accept correctly signed JWTs even when the issuer claim is wrong
 
-Files with uncommitted changes:
+- Files:
+  - `services/restaurant-service/src/main/java/ee/ut/esi/quickbite/restaurant/security/JwtAuthFilter.java:61`
+  - `services/restaurant-service/src/main/java/ee/ut/esi/quickbite/restaurant/security/JwtProperties.java:12-30`
+  - `services/menu-service/src/main/java/ee/ut/esi/quickbite/menu/security/JwtAuthFilter.java:61`
+  - `services/menu-service/src/main/java/ee/ut/esi/quickbite/menu/security/JwtProperties.java:12-30`
+- Code path:
+  - both services load `jwt.issuer`;
+  - both auth filters only parse the signed token, extract claims, and authenticate the request;
+  - neither filter compares `claims.getIssuer()` to the configured issuer.
+- Live reproduction on 2026-04-19:
+  - I minted a valid HS256 token with repo-default secret and `iss="wrong-issuer"`.
+  - `GET http://localhost:8081/restaurants/d0000001-0000-0000-0000-000000000001/availability` returned `200 OK`.
+  - `POST http://localhost:8082/menu-items/validate` with the same token returned `200 OK` and `allValid=true`.
+- Impact:
+  - the intended trust boundary is weaker than the configuration suggests;
+  - any actor holding the shared signing secret can mint tokens for an unexpected issuer and still access protected Sierra-Lima endpoints;
+  - this is a real contract-hardening gap ahead of integration with the real User Service / gateway path.
+- Recommendation before final sign-off:
+  - enforce issuer equality in both `JwtAuthFilter` implementations;
+  - add controller tests for `wrong issuer -> 401`.
 
-- `services/menu-service/src/main/java/ee/ut/esi/quickbite/menu/service/MenuService.java`
-- `services/menu-service/src/test/java/ee/ut/esi/quickbite/menu/controller/MenuControllerTest.java`
-- `services/menu-service/src/test/java/ee/ut/esi/quickbite/menu/service/MenuServiceTest.java`
+### 2. Low -- service READMEs still describe the implementation as not yet created
 
-What changed in the local worktree:
+- Files:
+  - `services/README.md:23-24`
+  - `services/restaurant-service/README.md:53`
+  - `services/menu-service/README.md:58`
+- Observed drift:
+  - top-level `services/README.md` still says the Spring Boot skeletons are "not created yet";
+  - both per-service READMEs still say "No code yet."
+- Impact:
+  - this does not break runtime behavior;
+  - it does create avoidable confusion for a team lead receiving the repository for integration.
+- Recommendation:
+  - update these READMEs to reflect the actual implemented state and current run commands.
 
-- `MenuService.create(...)` now resolves the restaurant owner first and returns `404` when the target restaurant does not exist, even for `Admin`.
-- matching tests were added for the `Admin + missing restaurant -> 404` path.
-
-Why this matters:
-
-- `HEAD` `60fa710` was previously known to allow `Admin` to create an orphan menu item under a nonexistent restaurant.
-- the **current local repo** no longer reproduces that defect;
-- but if the team lead pulls `60fa710` from git without these local edits being committed, the fix is lost.
-
-Evidence from this audit:
-
-- current local repo probe: `Admin create menu on missing restaurant -> 404`
-- current local repo probe: `Owner create menu on missing restaurant -> 404`
-- `Menu Service` tests passed locally: `46/46`
-
-Handover impact:
-
-- this is the main release-management risk in the current state;
-- it is blocking for any git-based handover, but not for a literal folder handoff.
-
-### 2. Medium -- the tracked Windows PowerShell smoke scripts are broken on the actual local platform
-
-Affected files:
-
-- `services/local-dev/smoke.ps1:72`
-- `services/local-dev/smoke-cross-service.ps1:106`
-
-Observed behavior on this machine:
-
-- both scripts use `Invoke-WebRequest -StatusCodeVariable ...`;
-- PowerShell `7.6.0` on this machine does **not** expose that parameter;
-- `smoke.ps1` fails immediately with:
-
-```text
-A parameter cannot be found that matches parameter name 'StatusCodeVariable'.
-```
-
-- `smoke-cross-service.ps1` catches the same failure and degrades it into a misleading HTTP `0`, so it reports a false Sierra-Lima failure.
-
-Why this matters:
-
-- the repo includes these `.ps1` scripts specifically for Windows-friendly validation;
-- on the user's real platform, they currently cannot be trusted.
-
-Mitigation used during this audit:
-
-- `bash ./smoke.sh` passed;
-- `bash ./smoke-cross-service.sh` passed.
-
-Handover impact:
-
-- not a blocker for backend integration itself;
-- but it is a real verification-tooling defect and should be fixed before asking others to validate the repo from Windows.
-
-### 3. Low -- frontend client-side validation is weaker than the backend contract
-
-Contract drift observed:
-
-- `services/frontend/quickbite-frontend/src/views/AddRestaurantView.vue:93-110`
-- `services/frontend/quickbite-frontend/src/views/RestaurantDetailView.vue:181-198`
-
-These forms do **not** require `city`, while Sierra-Lima's backend contract requires a non-blank city.
-
-- `services/frontend/quickbite-frontend/src/views/AddMenuItemView.vue:131-134`
-- `services/frontend/quickbite-frontend/src/views/MenuItemDetailView.vue:175-178`
-
-These forms allow `priceAmount = 0`, while the backend requires price to be strictly positive.
-
-Why this matters:
-
-- users can submit values that the frontend treats as valid but the backend rejects with `400` / `422`;
-- the result is avoidable user-facing friction, not a backend integrity problem.
-
-Handover impact:
-
-- low severity;
-- worth cleaning before demo/polish, but not a blocker for service integration.
-
-### 4. Low -- the Newman collection can overstate "green" status
-
-Observed in the full Newman run:
-
-- `POST /api/auth/login` through the dev-gateway stub returned `501 Not Implemented`;
-- `POST /restaurants` in the CRUD folder returned `409 Conflict`;
-- the collection still finished with `39 requests`, `66 assertions`, `0 failures`.
-
-Why:
-
-- those requests do not have assertions that enforce expected status.
-
-Why this matters:
-
-- a green Newman summary is useful, but not sufficient on its own;
-- some requests in the collection are informational / future-facing rather than hard pass-fail checks.
-
-Handover impact:
-
-- not a code blocker;
-- but the team lead should not treat the Newman green summary as a complete substitute for targeted probe review.
+No additional reproducible functional defects were found in Sierra-Lima's owned runtime surface during this audit.
 
 ## Q1. Do the implemented functionalities sufficiently cover Sierra-Lima's Assignment 3 ownership?
 
-**Answer: yes, with the current local worktree.**
+**Answer: yes.**
 
-Assignment 3 and the repo's scope freeze (`0001-scope-freeze.md`) make Sierra-Lima responsible for:
+Assignment 3 and the checked-in Assignment 3 submission assign Sierra-Lima to:
 
 - `Restaurant Service`
 - `Menu Service`
-- participation in W1 via:
+- W1 participation through:
   - `GET /restaurants/{id}/availability`
   - `POST /menu-items/validate`
 
 Coverage confirmed in the current local repository:
 
-- `Restaurant Service`
+- `Restaurant Service` exposes the expected six endpoints:
   - `POST /restaurants`
   - `GET /restaurants/{id}`
   - `PUT /restaurants/{id}`
   - `PATCH /restaurants/{id}/status`
   - `GET /restaurants`
   - `GET /restaurants/{id}/availability`
-- `Menu Service`
+- `Menu Service` exposes the expected six endpoints:
   - `POST /restaurants/{rid}/menu-items`
   - `GET /restaurants/{rid}/menu-items`
   - `GET /menu-items/{id}`
   - `PUT /menu-items/{id}`
   - `DELETE /menu-items/{id}`
   - `POST /menu-items/validate`
-- per-service persistence and migrations are present
-  - `V1__init.sql`
-  - `V2__seed_demo_data.sql`
-- JWT-based route protection and owner/admin authorization are present
-- W1 hop 4 and hop 5 were exercised successfully in the rebuilt Docker stack
-- the optional Phase 16 `menu-events` emit point also worked in the current local stack
+- both services own their own schemas, Flyway migrations, and seed data;
+- both W1 hops under Sierra-Lima ownership were exercised live and passed;
+- owner/admin authorization is implemented for mutation endpoints;
+- Sierra-Lima's local frontend slice exists as an extra convenience layer for browse/manage flows.
 
-Important boundary note:
+Boundary note:
 
-- `Review Service` remains design-only, which matches the frozen scope;
-- login/signup, real gateway auth, full order placement, payment, delivery, and notification remain teammate-owned and are **not** required to count Sierra-Lima's Assignment 3 subset as covered.
+- `Review Service` remains design-only, which matches the frozen A3 scope;
+- teammate-owned end-to-end flows (`User`, `Order`, `Payment`, `Delivery`, `Notification`, real gateway auth orchestration) are outside Sierra-Lima's ownership and therefore outside the minimum "subset coverage" judgment here.
 
-Conclusion for Q1:
+Conclusion:
 
-- **Sierra-Lima's Assignment 3-owned subset is sufficiently covered in breadth and in core runtime behavior.**
-- the remaining concerns are handover/process quality and validation-tooling quality, not a scope hole in the A3-owned backend slice.
+- **Sierra-Lima's A3-owned subset is sufficiently covered in both breadth and live behavior.**
 
 ## Q2. What validation was Golf-Papa-Tango able to complete?
 
@@ -194,82 +103,76 @@ Conclusion for Q1:
 
 | Area | Result |
 | --- | --- |
-| Assignment 3 scope cross-check | Completed from `dev-docs/course-materials/Assignment_3_2026.pdf` and `dev-docs/decisions/0001-scope-freeze.md` |
-| Git state review | Completed; `HEAD` at `60fa710`, worktree dirty with 3 modified Menu Service files |
-| Restaurant backend tests | Passed: `32/32` |
-| Menu backend tests | Passed: `46/46` |
-| Frontend lint | Passed |
-| Frontend production build | Passed; hash `b56fb68e13e1cf00` |
-| Compose config render | Passed |
-| Docker rebuild | Passed with `docker compose --profile dev-gateway --env-file .env.example up --build -d` |
-| Container health | Passed: frontend, dev-gateway, both DBs, Restaurant Service, and Menu Service healthy |
-| Bash smoke | Passed: `services/local-dev/smoke.sh` |
-| Bash cross-service smoke | Passed: `services/local-dev/smoke-cross-service.sh` |
-| Menu-events evidence | Captured `2` lines in `services/local-dev/evidence/menu-events_20260419T181617Z.log` |
-| Gateway reachability | Passed: `http://localhost:8080/healthz` |
-| Frontend reachability | Passed: `http://localhost:8090/` |
-| Frontend same-origin API proxy | Passed: `http://localhost:8090/api/restaurants?page=0&size=1 -> 200` |
-| Dev-gateway API proxy | Passed: `http://localhost:8080/api/restaurants?page=0&size=1 -> 200` |
-| Newman collection | Passed: `39` requests, `66` assertions, `0` failures |
-| Direct regression probe: admin create menu under missing restaurant | Passed locally: `404` |
-| Direct regression probe: owner create menu under missing restaurant | Passed locally: `404` |
-| Direct regression probe: duplicate same-owner restaurant rename | Passed locally: `409` |
-| Direct regression probe: invalid `operatingHours=24:00-24:00` | Passed locally: `400` |
-| Direct regression probe: `DELETE /restaurants/{id}` | Passed locally: `405` |
-| Direct regression probe: `PATCH /menu-items/{id}` | Passed locally: `405` |
-| Direct regression probe: mixed-currency validate | Passed locally: `400` after creating a temporary USD item |
+| Assignment 3 scope cross-check | Completed from `dev-docs/course-materials/Assignment_3_2026.pdf` and `dev-docs/prior-submissions/Assignment-3-Submission.pdf` |
+| Code review | Completed across Sierra-Lima backend, frontend, Docker stack, scripts, and docs |
+| Restaurant backend tests | Passed: `32/32` via `mvn clean test` |
+| Menu backend tests | Passed: `46/46` via `mvn clean test` |
+| Frontend lint | Passed via `npm run lint` |
+| Frontend production build | Passed via `npm run build` |
+| Compose config render | Passed via `docker compose --profile dev-gateway ... config` |
+| Docker rebuild and boot | Passed via `docker compose --profile dev-gateway ... up -d --build` |
+| Container health | Passed: `frontend`, `dev-gateway`, both DBs, `restaurant-service`, `menu-service` all healthy |
+| Sierra-Lima smoke | Passed via `services/local-dev/smoke.ps1` in `pwsh` |
+| Cross-service smoke | Passed via `services/local-dev/smoke-cross-service.ps1` in `pwsh` |
+| Menu-events evidence | Captured `2` log lines in `services/local-dev/evidence/menu-events_20260419T190125Z.log` |
+| Frontend reachability | Passed: `http://localhost:8090 -> 200` |
+| Dev-gateway reachability | Passed: `http://localhost:8080/healthz -> 200` |
+| Newman `Restaurant CRUD` | Passed: `6` requests, `1` assertion, `0` failures |
+| Newman `Menu CRUD` | Passed: `6` requests, `2` assertions, `0` failures |
+| Newman `W1 Integration` | Passed: `9` requests, `40` assertions, `0` failures |
+| Newman `Negative Auth` | Passed: `14` requests, `21` assertions, `0` failures |
+| Targeted security probe | Reproduced issuer-enforcement defect on both services with a wrong-issuer token |
+| Source-hygiene scan | No `TODO` / `FIXME` / `XXX` markers found in `services/` source files |
 
-### Validation limitations and caveats
+### Validation limitations and notes
 
-- `smoke.ps1` and `smoke-cross-service.ps1` could **not** be used as reliable validation artifacts on the local Windows shell because of the broken `Invoke-WebRequest -StatusCodeVariable` usage.
-- the full Newman collection is helpful, but two requests observed in the same run were not actually green:
-  - `POST /api/auth/login` via dev-gateway stub -> `501`
-  - `POST /restaurants` in the CRUD folder -> `409`
-- real teammate-owned services were not available from this repo alone, so the following were not end-to-end validated:
-  - User Service
-  - Order Service
-  - Payment Service
-  - Delivery Service
-  - Notification Service
-- I did not perform a manual browser walkthrough; frontend validation here was buildability, route/proxy reachability, and static code review.
+- Real teammate-owned services were not present from this repository alone, so I could **not** complete a true end-to-end W1 through `User`, `Order`, `Payment`, `Delivery`, and `Notification`.
+- I did not run a manual browser walkthrough; frontend validation here was static review, lint/build, container boot, and HTTP reachability.
+- The PowerShell smoke scripts are **PowerShell 7** scripts in practice because they rely on `Invoke-WebRequest -SkipHttpErrorCheck`; they pass in `pwsh`, but invoking them through legacy `powershell.exe` will fail.
 
 ## Q3. Final verdict on readiness to send the repository to the team lead for integration
 
-**Final verdict: `CONDITIONALLY READY`.**
+**Final verdict: `CONDITIONALLY READY FOR TEAM-LEAD INTEGRATION`.**
 
-### Ready, if all of the following are true
+Why it is ready enough to hand over for integration work:
 
-- the team lead will receive the **current local repository contents**, not just commit `60fa710`;
-- or the 3 modified Menu Service files are committed before handover;
-- the team lead understands that the Windows PowerShell smoke scripts are currently broken and should use the bash scripts or raw HTTP probes instead.
+- Sierra-Lima's Assignment 3-owned services are implemented and live;
+- the full local build/test/runtime matrix is green:
+  - backend tests,
+  - frontend lint/build,
+  - Docker health,
+  - Sierra-Lima smoke,
+  - cross-service smoke,
+  - and the curated Newman folders;
+- no owned-scope functional gap comparable to the earlier orphan-menu defect was reproduced.
 
-### Not ready, if handover means "push current branch as-is"
+Why the verdict is still conditional instead of unqualified:
 
-If the team lead is expected to pull `HEAD` `60fa710` from git, my verdict becomes:
+- Finding 1 is real and live: issuer pinning is configured but not enforced in either service;
+- Finding 2 means the handoff documentation is stale enough to misrepresent repository maturity.
 
-- **`NOT READY YET`**
+My recommendation:
 
-Reason:
+1. Fix issuer enforcement in both JWT filters and add the negative tests.
+2. Refresh the stale READMEs under `services/`.
+3. Then treat the repository as fully ready for handoff.
 
-- the local worktree contains a meaningful Menu Service fix that is not part of the commit history yet.
+If the team lead needs the repository **now** for functional integration, I would send it with an explicit note that:
 
-### Recommendation before handover
+- Sierra-Lima's owned runtime surface is green;
+- the remaining open issue is JWT issuer hardening, not missing W1 functionality.
 
-1. Commit the 3 local Menu Service changes so the missing-restaurant fix is part of the actual handoff state.
-2. Fix `smoke.ps1` and `smoke-cross-service.ps1` by removing the unsupported `-StatusCodeVariable` usage.
-3. Tighten frontend validation so it matches backend rules for required `city` and strictly positive menu prices.
-4. Optionally tighten the Newman collection so the known `409` and `501` requests are either asserted intentionally or moved out of the "green means good" path.
+## Evidence summary
 
-## Evidence produced during this audit
-
-- `services/local-dev/evidence/cross-service-smoke_20260419T181617Z.log`
-- `services/local-dev/evidence/menu-events_20260419T181617Z.log`
+- Backend tests passed: `78/78`
+- Frontend lint/build passed
+- Docker stack healthy under dev-gateway profile
+- PowerShell smokes passed in `pwsh`
+- Newman folders passed: `35` requests, `64` assertions, `0` failures
+- Evidence logs produced:
+  - `services/local-dev/evidence/cross-service-smoke_20260419T190125Z.log`
+  - `services/local-dev/evidence/menu-events_20260419T190125Z.log`
 
 ## Bottom line
 
-For Sierra-Lima's actual Assignment 3 ownership, the current local repo is in good shape and the backend/runtime path is green. The two things preventing an unqualified sign-off are:
-
-- the fix-bearing worktree is still uncommitted;
-- Windows-native verification scripts are currently broken.
-
-Once the Menu Service fix is committed, I would consider this repository fit to send to the team lead for integration, with the PowerShell-script issue tracked as a follow-up.
+Sierra-Lima's subset is implemented, runnable, and integration-capable. The repository is close to handoff quality, but not yet at the "as bug-free as possible" bar because both services still trust a wrong-issuer JWT as long as it is signed with the shared secret.

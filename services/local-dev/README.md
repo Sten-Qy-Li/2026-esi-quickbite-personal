@@ -1,24 +1,36 @@
 # Local Dev
 
-Docker Compose stack, environment-variable template, and Postman
-workspace for running Sierra-Lima's services on a developer laptop.
+Docker Compose stack, environment-variable template, smoke scripts,
+and Postman workspace for running Sierra-Lima's services on a
+developer laptop.
 
-Operational steps (start, reset, logs) live in
-[`runbook.md`](runbook.md). This file is the reference index: what
-exists, what ports each piece uses, and where to look next.
+**Operational steps** (start, reset, logs, IntelliJ mode, W1 smoke)
+live in [`runbook.md`](runbook.md). This file is the reference index:
+what exists, what ports each piece uses, and where to look next.
 
 ## Layout
 
 ```
 local-dev/
-  docker-compose.yml       restaurant-db + menu-db + restaurant-service + menu-service
-  .env.example             tracked template for all environment variables
-  .env.local               git-ignored local overrides (created from .env.example on first run)
-  runbook.md               how to bring the stack up, reset data, inspect logs, run services
+  docker-compose.yml                   both DBs + both services + frontend + dev-gateway (profile)
+  .env.example                         tracked template for all environment variables
+  .env.local                           git-ignored local overrides (created from .env.example on first run)
+  runbook.md                           operational steps (stack up, IntelliJ mode, smokes, CP#1 dry run)
+  smoke.sh / smoke.ps1                 Sierra-Lima-only happy-path probe (expect: exit 0)
+  smoke-cross-service.sh / .ps1        cross-service probes + captures `menu-events` log
+  dev-gateway/
+    nginx.conf                         dev-only reverse proxy for the frontend (profile: dev-gateway)
+  evidence/
+    cross-service-smoke_*.log          per-run smoke output (tracked; audit trail for Phase 16+ DoD)
+    menu-events_*.log                  per-run `menu-events` log lines (tracked, same reason)
   postman/
-    QuickBite.postman_collection.json    Phase 7 collection with JWT auto-mint and negative-auth scenarios
-    QuickBite.postman_environment.json   shared variables (base URLs, ids, tokens)
+    QuickBite.postman_collection.json  Phase 7+ collection: JWT auto-mint, role matrix, W1 folder, negative-auth
+    QuickBite.postman_environment.json shared variables (base URLs, ids, tokens)
 ```
+
+`evidence/*.log` files are deliberately tracked despite the global
+`*.log` ignore rule, per the exception in the root `.gitignore` --
+they are the point-in-time evidence audits cite.
 
 ## Port and env-var matrix (master plan §9 Phase 2 Task 10)
 
@@ -74,12 +86,33 @@ for fast iteration; see [`runbook.md`](runbook.md) §7.
 ## Not included here
 
 - Teammates' services (User, Order, Payment, Delivery, Notification).
-  They run from their own repos during integration rehearsals.
+  They run from their own repos during integration rehearsals. The
+  real API Gateway (Alfa-Kilo, Spring Cloud Gateway) is also
+  teammate-owned; the `dev-gateway` nginx profile here is a thin
+  local substitute that only routes the frontend-served paths.
 - Eureka, Spring Cloud Config, or any discovery server -- explicit
   non-goal **N4** in
   [`0005-non-goals.md`](../../dev-docs/decisions/0005-non-goals.md).
-- Kafka broker. Added to this Compose file in **Phase 10** (W2/W3
-  async rehearsal support).
+- Kafka broker. Sierra-Lima remains a non-participant per
+  [`0040`](../../dev-docs/decisions/0040-phase-16-async-stance.md);
+  the `menu-events` publisher logs to stdout. A Kafka swap is a
+  one-class drop-in when the group broker is ready.
+
+## For AI coding agents
+
+- **Before editing `docker-compose.yml`**, check that any new env-var
+  key matches the naming convention in `0003-conventions.md`. Do not
+  introduce new `<SERVICE>_SERVICE_URL` variants -- they are
+  enumerated in the env-var matrix above.
+- **Smoke scripts are the contract.** `smoke.sh` exits 0 only when
+  Sierra-Lima's happy path works end-to-end. If you change a DTO
+  shape, update the smoke probe in the same commit.
+- **`evidence/` is append-only.** Do not delete past smoke logs; they
+  are cited by audits. Each run appends a new timestamped file.
+- **Postman pack is a demo asset.** Any change to the collection
+  should keep every positive POST using `{{$timestamp}}` for
+  uniqueness (see audit `50b8e1d` Finding 1 for the pattern-break
+  this exists to avoid).
 
 ## Current state
 
@@ -96,7 +129,17 @@ Phase 8 dockerisation is complete:
 - [x] `.env.example` template and runbook
 - [x] Postman collection with JWT auto-mint (Phase 7)
 
-Next expansions:
+Handover state (at commit `50b8e1d`, per the latest audit):
 
-- Phase 10: add Kafka broker + topic config for W2/W3.
-- Phase 16: add Async Evidence folder in Postman.
+- 6-container compose all healthy (`dev-gateway` profile on).
+- Both smoke scripts exit 0, cross-service log captured to
+  `evidence/cross-service-smoke_20260420T115714Z.log`.
+- Newman over the full Postman pack: 39 requests, 68/68 assertions,
+  0 failures. One known brittleness in `PUT /restaurants/{id}` body
+  (audit `50b8e1d` Finding 1) is documented but not blocking.
+
+Conditional expansions (see `0040`):
+
+- Kafka broker + topic config for the `menu-events` producer --
+  only if Sierra-Lima elects to participate in W2/W3 post-CP#3.
+- An "Async Evidence" folder in Postman, if the swap lands.

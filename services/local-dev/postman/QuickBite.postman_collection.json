@@ -224,6 +224,21 @@
         },
         {
           "name": "PUT /restaurants/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('name is echoed and marked updated', () => {",
+                  "    pm.expect(body.name).to.match(/^Pizza Antonio \\(updated\\) \\d+$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [
@@ -232,7 +247,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Pizza Antonio (updated)\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"10:00-23:00\"\n}"
+              "raw": "{\n  \"name\": \"Pizza Antonio (updated) {{$timestamp}}\",\n  \"address\": \"Rüütli 12\",\n  \"city\": \"Tartu\",\n  \"latitude\": 58.3776,\n  \"longitude\": 26.7290,\n  \"operatingHours\": \"10:00-23:00\"\n}"
             },
             "url": {
               "raw": "{{restaurantBaseUrl}}/restaurants/{{restaurantId}}",

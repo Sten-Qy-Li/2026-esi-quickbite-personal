@@ -25,12 +25,26 @@
       </header>
 
       <div v-if="canManage" class="nav-actions">
-        <button type="button" class="btn-secondary" :disabled="toggling" @click="toggleAvailability">
+        <button
+          type="button"
+          class="btn-secondary"
+          :disabled="toggling || deleting"
+          @click="toggleAvailability"
+        >
           {{ toggling
             ? 'Updating…'
             : item.isAvailable ? 'Mark as unavailable' : 'Mark as available' }}
         </button>
+        <button
+          type="button"
+          class="btn-danger"
+          :disabled="deleting || toggling"
+          @click="onDelete"
+        >
+          {{ deleting ? 'Deleting…' : 'Delete item' }}
+        </button>
       </div>
+      <div v-if="canManage && deleteError" class="error-banner">{{ deleteError }}</div>
 
       <section v-if="canManage" class="edit-panel">
         <h2>Edit item</h2>
@@ -126,6 +140,8 @@ export default {
       saveError: '',
       savedAt: 0,
       toggling: false,
+      deleting: false,
+      deleteError: '',
       fieldErrors: {}
     };
   },
@@ -229,6 +245,24 @@ export default {
         this.toggling = false;
       }
     },
+    async onDelete() {
+      if (!this.item) return;
+      const prompt = `Delete "${this.item.name}"? This cannot be undone.`;
+      const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+        ? window.confirm(prompt)
+        : true;
+      if (!confirmed) return;
+      const restaurantId = this.item.restaurantId;
+      this.deleting = true;
+      this.deleteError = '';
+      try {
+        await api.delete(`/api/menu-items/${this.id}`);
+        this.$router.push({ name: 'restaurant-menu', params: { id: restaurantId } });
+      } catch (err) {
+        this.deleteError = err instanceof ApiError ? err.message : 'Could not delete menu item.';
+        this.deleting = false;
+      }
+    },
     formatPrice() {
       if (!this.item) return '';
       if (this.item.priceAmount === null || this.item.priceAmount === undefined) return '—';
@@ -272,6 +306,14 @@ export default {
   color: var(--qb-accent);
   border: 1px solid var(--qb-accent);
 }
+
+.btn-danger {
+  background: #9b1c1c;
+  color: #fff;
+  border: 1px solid #9b1c1c;
+}
+
+.btn-danger:disabled { opacity: 0.65; cursor: not-allowed; }
 
 .edit-panel, .info-panel {
   background: #fff;

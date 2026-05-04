@@ -32,9 +32,9 @@ The repository and its contents were produced with the assistance of AI agents.
 
 ### Service under examination
 
-The **Menu Service** (`menu-service/`) is the service submitted for Project Checkpoint 1 grading. The Restaurant Service (`restaurant-service/`) is also fully implemented and is included so that the Menu Service's cross-service test (item E below) can exercise a real collaborator interaction; per the "1 service per student" rule in `Project2026.md` §4.1, the second service is not itself in scope for CP1.
+The **Menu Service** (`menu-service/`) is the service submitted for Project Checkpoint 1 grading. The Restaurant Service (`restaurant-service/`) is also fully implemented and is included so that the Menu Service's cross-service test (item E below) can exercise a real collaborator interaction; per the "one service per student" rule for CP1, the second service is not itself in scope at this checkpoint.
 
-### Mapping to Checkpoint 1 deliverables (`Project2026.md` §4.1)
+### Mapping to Checkpoint 1 deliverables
 
 | Item | Where to look |
 |---|---|

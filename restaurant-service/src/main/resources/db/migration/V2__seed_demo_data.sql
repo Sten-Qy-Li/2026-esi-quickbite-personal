@@ -1,5 +1,5 @@
 -- Restaurant Service V2 -- demo seed data (6 restaurants, Tartu + Tallinn).
--- Stable UUIDs per 0020-sten-contracts.md §5.1 so the Postman
+-- Stable UUIDs per 0020-sierra-lima-contracts.md §5.1 so the Postman
 -- collection and cross-service (Menu -> Restaurant) references line up.
 -- Rows 3 and 6 are closed to support failure-path demos (Order Service
 -- should reject an order against a closed restaurant).

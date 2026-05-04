@@ -1,7 +1,7 @@
-# Phase 16 cross-service smoke -- Sierra-Lima (PowerShell port).
+# Phase 16 cross-service smoke -- Sten (PowerShell port).
 # See smoke-cross-service.sh for the canonical description.
-# Exits 0 on Sierra-Lima success (teammate skips are fine), 1 on a
-# Sierra-Lima failure, 2 on a configured teammate URL that does not answer.
+# Exits 0 on Sten success (teammate skips are fine), 1 on a
+# Sten failure, 2 on a configured teammate URL that does not answer.
 
 [CmdletBinding()]
 param(
@@ -150,9 +150,9 @@ if ($customerToken.Length -lt 100) { Write-FailSierra 'customer token too short'
 Write-Info 'owner token minted'
 Write-Info 'customer token minted'
 
-# -------- Step 2: Sierra-Lima W1 portion --------
+# -------- Step 2: Sten W1 portion --------
 Write-Trace ''
-Write-Trace '[STEP 2] Sierra-Lima W1 hops'
+Write-Trace '[STEP 2] Sten W1 hops'
 
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $create = Invoke-SmokeRequest -Method POST -Url "$RestaurantBase/restaurants" -Token $ownerToken -ExpectedStatus 201 -Body @{
@@ -313,17 +313,17 @@ Probe-Optional 'Notification Service' $NotificationBase '/actuator/health'
 # -------- Summary --------
 Write-Trace ''
 Write-Trace '[SUMMARY]'
-Write-Trace "sierra-lima failures = $script:SierraFailed"
+Write-Trace "Sten failures = $script:SierraFailed"
 Write-Trace "teammate failures    = $script:TeammateFailed"
 Write-Trace "trace file           = $TraceFile"
 
 Write-Host ''
 if ($script:SierraFailed -ne 0) {
-    Write-Host "FAIL -- Sierra-Lima-owned steps failed. See $TraceFile." -ForegroundColor Red
+    Write-Host "FAIL -- Sten-owned steps failed. See $TraceFile." -ForegroundColor Red
     exit 1
 }
 if ($script:TeammateFailed -ne 0) {
-    Write-Host "WARN -- Sierra-Lima OK; teammate probe(s) failed. See $TraceFile." -ForegroundColor Yellow
+    Write-Host "WARN -- Sten OK; teammate probe(s) failed. See $TraceFile." -ForegroundColor Yellow
     exit 2
 }
 Write-Host 'OK -- cross-service smoke passed (teammate-owned parts SKIPped if unconfigured).' -ForegroundColor Green

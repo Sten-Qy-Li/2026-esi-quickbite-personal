@@ -1,12 +1,12 @@
 # Restaurant Service
 
-Sierra-Lima's Spring Boot service that owns the `Restaurant` aggregate
+Sten's Spring Boot service that owns the `Restaurant` aggregate
 (requirements **R19** register/manage restaurant and **R20** update
 open/closed and operating hours). Implemented in **Phase 2** of the
 master plan and hardened through Phases 5-19.
 
-Owner: Sierra-Lima. Authoritative API shape:
-[`../../dev-docs/decisions/0020-sierra-lima-contracts.md`](../../dev-docs/decisions/0020-sierra-lima-contracts.md).
+Owner: Sten. Authoritative API shape:
+[`../../dev-docs/decisions/0020-sten-contracts.md`](../../dev-docs/decisions/0020-sten-contracts.md).
 Authoritative auth matrix:
 [`../../dev-docs/decisions/0010-auth-contract.md`](../../dev-docs/decisions/0010-auth-contract.md).
 
@@ -120,14 +120,14 @@ in [`../local-dev/.env.example`](../local-dev/.env.example).
 ## Related decisions
 
 - [`0001-scope-freeze.md`](../../dev-docs/decisions/0001-scope-freeze.md)
-  -- Sierra-Lima owns this service.
+  -- Sten owns this service.
 - [`0002-workflows.md`](../../dev-docs/decisions/0002-workflows.md)
   -- W1 role as synchronous callee (hop 4).
 - [`0003-conventions.md`](../../dev-docs/decisions/0003-conventions.md)
   -- naming, package, Docker, env var.
 - [`0010-auth-contract.md`](../../dev-docs/decisions/0010-auth-contract.md)
   -- JWT shape, role matrix.
-- [`0020-sierra-lima-contracts.md`](../../dev-docs/decisions/0020-sierra-lima-contracts.md)
+- [`0020-sten-contracts.md`](../../dev-docs/decisions/0020-sten-contracts.md)
   -- full API contract for this service.
 - [`0030-w1-synchronous-contract-lock.md`](../../dev-docs/decisions/0030-w1-synchronous-contract-lock.md)
   -- W1 hop-4 request/response.

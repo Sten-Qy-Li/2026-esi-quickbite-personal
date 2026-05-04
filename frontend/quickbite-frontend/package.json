@@ -2,7 +2,7 @@
   "name": "quickbite-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Vue.js frontend for the QuickBite food-delivery platform (Sierra-Lima).",
+  "description": "Vue.js frontend for the QuickBite food-delivery platform (Sten).",
   "scripts": {
     "serve": "vue-cli-service serve --port 8090",
     "build": "vue-cli-service build",

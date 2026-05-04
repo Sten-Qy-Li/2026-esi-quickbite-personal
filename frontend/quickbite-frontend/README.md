@@ -1,9 +1,9 @@
 # quickbite-frontend
 
 Vue.js 3 frontend for the QuickBite food-delivery platform.
-Created in **Phase 12** of the Sierra-Lima master plan
+Created in **Phase 12** of the Sten master plan
 (`../../../dev-docs/roadmaps/Charlie-Lima-Alfa_a520963_project-phases-final.md`).
-Owned by Sierra-Lima. Covers the Sierra-Lima slice of the UI
+Owned by Sten. Covers the Sten slice of the UI
 (restaurant and menu flows); teammates' flows (user signup, order
 placement, driver, payment) integrate during the group-wide
 frontend merge.
@@ -100,8 +100,8 @@ for the token shape.
 ## For AI coding agents
 
 - **Before adding a new endpoint call**, check that it is in
-  [`../../../dev-docs/decisions/0020-sierra-lima-contracts.md`](../../../dev-docs/decisions/0020-sierra-lima-contracts.md)
-  (for Sierra-Lima's services) or owned by a teammate (in which
+  [`../../../dev-docs/decisions/0020-sten-contracts.md`](../../../dev-docs/decisions/0020-sten-contracts.md)
+  (for Sten's services) or owned by a teammate (in which
   case do not add it here without a teammate commitment on the
   shared contract).
 - **Role gating goes through `auth/token.js`.** Do not duplicate
@@ -109,4 +109,4 @@ for the token shape.
 - **All API calls go through `api/client.js`.** A raw `fetch()` in a
   view bypasses the 401 interceptor and will misbehave on logout.
 - **Placeholder views** (Cart, OrderStatus) are owned by teammates
-  after integration. Do not wire them to Sierra-Lima's services.
+  after integration. Do not wire them to Sten's services.

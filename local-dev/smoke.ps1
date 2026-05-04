@@ -1,4 +1,4 @@
-# Sierra-Lima Checkpoint #1 smoke test -- Phase 11 §5 (PowerShell port).
+# Sten Checkpoint #1 smoke test -- Phase 11 §5 (PowerShell port).
 # Runs the same happy-path flow as smoke.sh: mint dev token, create restaurant,
 # add menu item, toggle status, call availability, call batch validate.
 # Exits 0 only if every step passes.
@@ -83,7 +83,7 @@ function Invoke-JsonRequest {
     return ($response.Content | ConvertFrom-Json)
 }
 
-Write-Host "== Sierra-Lima smoke test =="
+Write-Host "== Sten smoke test =="
 Write-Host "Restaurant Service : $RestaurantBase"
 Write-Host "Menu Service       : $MenuBase"
 Write-Host ""
@@ -140,5 +140,5 @@ if (-not $validate.allValid) { Write-Fail "expected allValid=true, got $($valida
 Write-Info 'batch validate allValid=true'
 
 Write-Host ''
-Write-Host 'OK -- Sierra-Lima smoke test passed.' -ForegroundColor Green
+Write-Host 'OK -- Sten smoke test passed.' -ForegroundColor Green
 exit 0

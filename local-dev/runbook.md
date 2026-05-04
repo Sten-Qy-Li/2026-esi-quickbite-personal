@@ -1,6 +1,6 @@
 # Local-Dev Runbook
 
-Bring up Sierra-Lima's databases and services. From Phase 8 onward
+Bring up Sten's databases and services. From Phase 8 onward
 the full stack (databases + Spring Boot services) runs in Docker
 Compose. You can still run the services from IntelliJ against just
 the DB containers -- see §7.
@@ -134,7 +134,7 @@ Both should return `{"status":"UP"}` plus Flyway/DB details.
 
 ## 9. W1 integration smoke test (Phase 10)
 
-With the full stack healthy, run Sierra-Lima's W1 contract folder via
+With the full stack healthy, run Sten's W1 contract folder via
 Newman to exercise the two hops Alfa-Kilo's Order Service will make
 (`GET /restaurants/{id}/availability`, then
 `POST /menu-items/validate`). Each request carries the customer token

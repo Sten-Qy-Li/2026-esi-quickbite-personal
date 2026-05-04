@@ -126,7 +126,7 @@ services:
       start_period: 5s
 
   # Opt-in dev stub that stands in for Alfa-Kilo's real API Gateway
-  # during Sierra-Lima's CP#2 integration rehearsal. Gated behind the
+  # during Sten's CP#2 integration rehearsal. Gated behind the
   # `dev-gateway` compose profile so it never runs for the canonical
   # stack; enable with `--profile dev-gateway` or by setting
   # COMPOSE_PROFILES=dev-gateway in .env.local.

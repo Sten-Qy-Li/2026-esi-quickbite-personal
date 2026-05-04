@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "QuickBite",
-    "description": "Sierra-Lima's Restaurant + Menu services. Phase 7 hardening: tokens auto-minted for each of the 3 roles via a collection-level pre-request script (CryptoJS HS256), so every request has a fresh customerToken / ownerToken / adminToken in scope. Negative Auth folder covers the 401 / 403 / 400 / 404 / 422 edges.",
+    "description": "Sten's Restaurant + Menu services. Phase 7 hardening: tokens auto-minted for each of the 3 roles via a collection-level pre-request script (CryptoJS HS256), so every request has a fresh customerToken / ownerToken / adminToken in scope. Negative Auth folder covers the 401 / 403 / 400 / 404 / 422 edges.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -435,7 +435,7 @@
     },
     {
       "name": "W1 Integration",
-      "description": "Phase 10 integration evidence. The two hops Order Service makes into Sierra-Lima (availability + batch validate) are exercised end-to-end against the locked contracts in 0030 and the status-code table in 0031. Each request has a test block pinning the expected status and body shape -- run the folder with Newman to produce failure-path evidence for CP#1.",
+      "description": "Phase 10 integration evidence. The two hops Order Service makes into Sten (availability + batch validate) are exercised end-to-end against the locked contracts in 0030 and the status-code table in 0031. Each request has a test block pinning the expected status and body shape -- run the folder with Newman to produce failure-path evidence for CP#1.",
       "item": [
         {
           "name": "[200 open] GET /restaurants/{open}/availability",

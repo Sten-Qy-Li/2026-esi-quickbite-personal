@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Phase 16 cross-service smoke -- Sierra-Lima.
+# Phase 16 cross-service smoke -- Sten.
 #
 # Runs the full W1 -> W2 -> W3 trace to the extent teammate services are
-# available. Sierra-Lima-owned steps (W1 hops 4/5 against Restaurant + Menu)
+# available. Sten-owned steps (W1 hops 4/5 against Restaurant + Menu)
 # MUST pass; teammate-owned steps (Order, Payment, Delivery, Notification)
 # are probed opportunistically and report SKIP when their URLs are absent.
 #
@@ -12,8 +12,8 @@
 # of the menu-service container logs if docker is reachable.
 #
 # Exit codes:
-#   0  -- Sierra-Lima-owned steps passed; teammate steps passed or skipped.
-#   1  -- A Sierra-Lima-owned step failed.
+#   0  -- Sten-owned steps passed; teammate steps passed or skipped.
+#   1  -- A Sten-owned step failed.
 #   2  -- A teammate-owned step was configured (URL set) but failed.
 #
 # Env vars (all optional):
@@ -177,10 +177,10 @@ fi
 info "owner token minted"
 info "customer token minted"
 
-# -------- Step 2: Sierra-Lima W1 portion --------
+# -------- Step 2: Sten W1 portion --------
 
 trace ""
-trace "[STEP 2] Sierra-Lima W1 hops (create restaurant, add menu item, availability, validate)"
+trace "[STEP 2] Sten W1 hops (create restaurant, add menu item, availability, validate)"
 
 UNIQUE_SUFFIX=$(date +%s)
 CREATE_RESP=$(mktemp)
@@ -359,17 +359,17 @@ probe_optional "Notification Service" "$NOTIFICATION_BASE" "/actuator/health"
 
 trace ""
 trace "[SUMMARY]"
-trace "sierra-lima failures = ${SIERRA_FAILED}"
+trace "Sten failures = ${SIERRA_FAILED}"
 trace "teammate failures    = ${TEAMMATE_FAILED}"
 trace "trace file           = ${TRACE_FILE}"
 
 echo
 if [[ $SIERRA_FAILED -ne 0 ]]; then
-    red "FAIL -- Sierra-Lima-owned steps failed. See ${TRACE_FILE}."
+    red "FAIL -- Sten-owned steps failed. See ${TRACE_FILE}."
     exit 1
 fi
 if [[ $TEAMMATE_FAILED -ne 0 ]]; then
-    yellow "WARN -- Sierra-Lima OK; teammate probe(s) failed. See ${TRACE_FILE}."
+    yellow "WARN -- Sten OK; teammate probe(s) failed. See ${TRACE_FILE}."
     exit 2
 fi
 green "OK -- cross-service smoke passed (teammate-owned parts SKIPped if unconfigured)."

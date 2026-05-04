@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sierra-Lima Checkpoint #1 smoke test -- Phase 11 §5.
+# Sten Checkpoint #1 smoke test -- Phase 11 §5.
 # Exercises the happy-path demo against a running Restaurant + Menu
 # stack and exits 0 only if every step passes.
 #
@@ -83,7 +83,7 @@ for k in p:
 print(x)' "$1"
 }
 
-echo "== Sierra-Lima smoke test =="
+echo "== Sten smoke test =="
 echo "Restaurant Service : ${RESTAURANT_BASE}"
 echo "Menu Service       : ${MENU_BASE}"
 echo
@@ -163,5 +163,5 @@ ALL_VALID=$(json_path allValid < "$VALIDATE_RESP")
 info "batch validate allValid=true"
 
 echo
-green "OK -- Sierra-Lima smoke test passed."
+green "OK -- Sten smoke test passed."
 exit 0

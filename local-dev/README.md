@@ -32,7 +32,7 @@ local-dev/
 `*.log` ignore rule, per the exception in the root `.gitignore` --
 they are the point-in-time evidence audits cite.
 
-## Port and env-var matrix (master plan §9 Phase 2 Task 10)
+## Port and env-var matrix
 
 | Service              | Service Port | DB Port | Owner           | Scaffolded here? |
 |----------------------|--------------|---------|-----------------|------------------|
@@ -46,8 +46,8 @@ they are the point-in-time evidence audits cite.
 | Notification Service | 8087         | 5439    | Mike-Alfa       | No (external)    |
 | Kafka broker         | 9092         | --      | Mike-Alfa       | No (Phase 10+)   |
 
-Sten services read the following environment variables (names
-fixed by the master plan; values in `.env.example`):
+Sten services read the following environment variables (values
+in `.env.example`):
 
 | Variable                  | Used by                         | Notes                                               |
 |---------------------------|---------------------------------|-----------------------------------------------------|
@@ -57,10 +57,6 @@ fixed by the master plan; values in `.env.example`):
 | `JWT_ISSUER`              | Phase 7+                        | `quickbite-user-service`                            |
 | `RESTAURANT_SERVICE_URL`  | (future callers)                | `http://localhost:8081` by default                  |
 | `MENU_SERVICE_URL`        | (future callers)                | `http://localhost:8082` by default                  |
-
-Rationale for keeping the HS256 JWT secret in `.env.example` (not
-Vault/KMS) is non-goal **N8** in
-[`0005-non-goals.md`](../../dev-docs/decisions/0005-non-goals.md).
 
 ## Compose topology
 
@@ -91,19 +87,16 @@ for fast iteration; see [`runbook.md`](runbook.md) §7.
   teammate-owned; the `dev-gateway` nginx profile here is a thin
   local substitute that only routes the frontend-served paths.
 - Eureka, Spring Cloud Config, or any discovery server -- explicit
-  non-goal **N4** in
-  [`0005-non-goals.md`](../../dev-docs/decisions/0005-non-goals.md).
-- Kafka broker. Sten remains a non-participant per
-  [`0040`](../../dev-docs/decisions/0040-phase-16-async-stance.md);
-  the `menu-events` publisher logs to stdout. A Kafka swap is a
-  one-class drop-in when the group broker is ready.
+  non-goal for this checkpoint.
+- Kafka broker. Sten remains a non-participant; the `menu-events`
+  publisher logs to stdout. A Kafka swap is a one-class drop-in when
+  the group broker is ready.
 
 ## For AI coding agents
 
-- **Before editing `docker-compose.yml`**, check that any new env-var
-  key matches the naming convention in `0003-conventions.md`. Do not
-  introduce new `<SERVICE>_SERVICE_URL` variants -- they are
-  enumerated in the env-var matrix above.
+- **Before editing `docker-compose.yml`**, do not introduce new
+  `<SERVICE>_SERVICE_URL` variants -- they are enumerated in the
+  env-var matrix above.
 - **Smoke scripts are the contract.** `smoke.sh` exits 0 only when
   Sten's happy path works end-to-end. If you change a DTO
   shape, update the smoke probe in the same commit.
@@ -111,8 +104,7 @@ for fast iteration; see [`runbook.md`](runbook.md) §7.
   are cited by audits. Each run appends a new timestamped file.
 - **Postman pack is a demo asset.** Any change to the collection
   should keep every positive POST using `{{$timestamp}}` for
-  uniqueness (see audit `50b8e1d` Finding 1 for the pattern-break
-  this exists to avoid).
+  uniqueness, to avoid cross-run id collisions.
 
 ## Current state
 
@@ -129,16 +121,16 @@ Phase 8 dockerisation is complete:
 - [x] `.env.example` template and runbook
 - [x] Postman collection with JWT auto-mint (Phase 7)
 
-Handover state (at commit `50b8e1d`, per the latest audit):
+Handover state (at commit `50b8e1d`):
 
 - 6-container compose all healthy (`dev-gateway` profile on).
 - Both smoke scripts exit 0, cross-service log captured to
   `evidence/cross-service-smoke_20260420T115714Z.log`.
 - Newman over the full Postman pack: 39 requests, 68/68 assertions,
   0 failures. One known brittleness in `PUT /restaurants/{id}` body
-  (audit `50b8e1d` Finding 1) is documented but not blocking.
+  is documented but not blocking.
 
-Conditional expansions (see `0040`):
+Conditional expansions:
 
 - Kafka broker + topic config for the `menu-events` producer --
   only if Sten elects to participate in W2/W3 post-CP#3.

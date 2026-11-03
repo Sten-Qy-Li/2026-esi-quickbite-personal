@@ -1,5 +1,13 @@
 # Menu Service and Restaurant Service in a Food Delivery System
 
+**Archived coursework — Spring 2026**
+
+This repository is preserved as a historical record of my individual contributions to the University of Tartu's Enterprise System Integration course project, QuickBite.
+
+It was prepared for Project Checkpoint 1 and is no longer actively maintained. For the integrated team project used in subsequent checkpoints, see [QuickBite — Team Repository](https://github.com/anup28kmr/esi).
+
+The original source code, documentation, and grading instructions have been retained for reference.
+
 ## Section 1 of 3: Introduction
 
 ### Repository owner
